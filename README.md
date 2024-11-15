@@ -58,3 +58,11 @@ User should be able to
 
 Let the program run parametrized in (#Instances, #Rectangles, upper/lower bounds, L) to benchmark.
 Every algorithm is applied, results plus CPU time are recorded and printed.
+
+## Datatypes
+
+### Algorithm
+
+- ABC
+- local search implementation
+- greedy implementation
