@@ -35,6 +35,10 @@ impl ProblemRectangle {
   pub fn get_size(&self) -> [f32; 2] {
     [self.width as f32, self.height as f32]
   }
+
+  pub fn get_id(&self) -> u32 {
+    self.id
+  }
 }
 
 // Holds info about one box that has a number of rectangles in it
@@ -55,7 +59,8 @@ pub enum NeighborhoodType {
 #[derive(Debug)]
 pub struct Problem {
   pub boxes: Vec<ProblemBox>,
-  pub score: u32
+  pub score: u32,
+  pub last_moved_rec_id: Option<u32>
 }
 
 impl Problem {
@@ -87,9 +92,13 @@ impl Problem {
       let new_box: &mut ProblemBox = self.boxes.get_mut(new_box_idx).unwrap();
       new_box.rectangles.push(new_rect);
 
+      // Also record last moved rect id in problem
+      self.last_moved_rec_id = Some(rect_id);
+
     }
 
     // Score this current solution to the problem
+    // TODO: include some sort of factor for how tightly packed a box is?
     fn calculate_score(&mut self) {
         if self.is_valid() {
           // Count boxes with more than 0 rectangles in them
@@ -203,7 +212,8 @@ impl Default for Problem {
     fn default() -> Self {
         Self {
           boxes: Vec::new(),
-          score: 0
+          score: 0,
+          last_moved_rec_id: None
         }
     }
 }
@@ -212,7 +222,8 @@ impl Clone for Problem {
   fn clone(&self) -> Self {
       Problem {
         boxes: self.boxes.clone(),
-        score: self.score
+        score: self.score,
+        last_moved_rec_id: self.last_moved_rec_id
       }
   }
 }
