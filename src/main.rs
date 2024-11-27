@@ -1,10 +1,11 @@
 use algorithm::LocalSearch;
 use eframe::egui;
 use egui::{pos2, vec2, Color32, Rect, ScrollArea, TextStyle};
-use problem::{Problem, ProblemRectangle};
+use problem::Problem;
 
 mod problem;
 mod algorithm;
+mod neighborhoods;
 
 use crate::algorithm::OptimizationAlgorithm;
 

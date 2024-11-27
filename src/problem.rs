@@ -1,6 +1,6 @@
 use std::ops::Range;
 use rand::Rng;
-use itertools::Itertools;
+use crate::neighborhoods::{get_geometric_neighbors, get_permutation_neighbors, NeighborhoodType};
 
 // Holds info about a rectangle that can be fit into boxes
 #[derive(Debug, Clone)]
@@ -17,6 +17,7 @@ impl ProblemRectangle {
   fn area(&self) -> u32 {
     return self.width * self.height
   }
+  
   pub fn overlaps(&self, other: &ProblemRectangle, permissible_overlap: f32) -> bool {
     // Check if the two are equal
     if self.id == other.id {
@@ -56,6 +57,10 @@ impl ProblemRectangle {
   pub fn get_id(&self) -> u32 {
     self.id
   }
+
+  pub fn get_box_idx(&self) -> usize {
+    self.box_idx
+  }
 }
 
 // Holds info about one box that has a number of rectangles in it
@@ -64,13 +69,6 @@ pub struct ProblemBox {
   pub side_length: u32,
   pub rectangles: Vec<ProblemRectangle>
 }
-
-pub enum NeighborhoodType {
-  Geometric,
-  GeometricOverlap,
-  Permutation
-}
-
 
 // Encapsulates the whole problem instance
 #[derive(Debug)]
@@ -83,7 +81,7 @@ pub struct Problem {
 
 impl Problem {
     // Move rect to a new box and coordinate
-    fn move_rect(&mut self, rect_id: u32, old_box_idx: usize, new_x: u32, new_y: u32, new_box_idx: usize, flip: bool) {
+    pub fn move_rect(&mut self, rect_id: u32, old_box_idx: usize, new_x: u32, new_y: u32, new_box_idx: usize, flip: bool) {
       // TODO: error handling
       // Get rect in self
       let old_box = self.boxes.get_mut(old_box_idx).unwrap();
@@ -117,7 +115,8 @@ impl Problem {
 
     // Score this current solution to the problem
     // TODO: include some sort of factor for how tightly packed a box is?
-    fn calculate_score(&mut self) {
+    // TODO: refactor into own file to implement multiple options
+    pub fn calculate_score(&mut self) {
         if self.is_valid() {
           // Count boxes with more than 0 rectangles in them
           self.score = self.boxes.iter().filter(|b| b.rectangles.len() > 0).count() as u32;
@@ -176,50 +175,17 @@ impl Problem {
       return p;
     }
 
-    fn get_geometric_neighbors(&self) -> Vec<Problem> {
-      let mut neighbors = Vec::new();
-
-      // Iterate over all rectangles in all boxes
-      for current_rect in self.boxes.iter().flat_map(|b| b.rectangles.iter()) {
-        // Now iterate over all possible moves! A rect can be placed
-        // ... in any box
-        for (possible_box_idx, possible_box) in self.boxes.iter().enumerate() {
-          // ... in any coordinate within this box
-          for (x, y) in (0..possible_box.side_length).cartesian_product(0..possible_box.side_length) {
-            // ... at any rotation
-            for is_flipped in [true, false] {
-              // Clone into a new neighbor
-              let mut neighbor = self.clone();
-              // Get the "current rect" in the new neighbor
-              neighbor.move_rect(current_rect.id, current_rect.box_idx, x, y, possible_box_idx, is_flipped);
-              neighbor.calculate_score();
-
-              // TODO: skip infeasible neighbors for now
-              if neighbor.score == 0 {
-                continue;
-              }
-
-              neighbors.push(neighbor);
-            }
-          }
-        }
-      }
-      
-      return neighbors;
-    }
-
-    fn get_permutation_neighbors(&self) -> Vec<Problem> {
-      // TODO: implement
-      return Vec::new();
-    }
-
     // Get neighboring solutions
     pub fn get_neighbors(&self, neighborhood_type: NeighborhoodType) -> Vec<Problem> {
       match neighborhood_type {
-          NeighborhoodType::Geometric => self.get_geometric_neighbors(),
-          NeighborhoodType::GeometricOverlap => self.get_geometric_neighbors(), // TODO: where to adjust permissible overlap in this?
-          NeighborhoodType::Permutation => self.get_permutation_neighbors()
+          NeighborhoodType::Geometric => get_geometric_neighbors(self),
+          NeighborhoodType::GeometricOverlap => get_geometric_neighbors(self), // TODO: where to adjust permissible overlap in this?
+          NeighborhoodType::Permutation => get_permutation_neighbors(self)
       }
+    }
+
+    pub fn set_permissible_overlap(&mut self, val: f32) {
+      self.permissible_overlap = val;
     }
 }
 
