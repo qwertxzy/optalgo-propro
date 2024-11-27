@@ -14,20 +14,37 @@ pub struct ProblemRectangle {
 }
 
 impl ProblemRectangle {
-  pub fn overlaps(&self, other: &ProblemRectangle) -> bool {
+  fn area(&self) -> u32 {
+    return self.width * self.height
+  }
+  pub fn overlaps(&self, other: &ProblemRectangle, permissible_overlap: f32) -> bool {
     // Check if the two are equal
     if self.id == other.id {
       return false;
     }
-    // Check for overlap
-    return
-      (self.x < other.x + other.width) &&
-      (self.x + self.width > other.x) &&
-      (self.y < other.y + other.height) &&
-      (self.y + self.height > other.y)
+
+    // If permissible overlap is zero, any overlap will matter
+    if permissible_overlap == 0.0 {
+      return
+        (self.x < other.x + other.width) &&
+        (self.x + self.width > other.x) &&
+        (self.y < other.y + other.height) &&
+        (self.y + self.height > other.y)
+    }
+    // If it's not, we need to compute the overlap area for the two rects
+    // and compare it against the permissible value
+    let overlap_x1 = self.x.max(other.x);
+    let overlap_y1 = self.y.max(other.y);
+    let overlap_x2 = (self.x + self.width).min(other.x + other.width);
+    let overlap_y2 = (self.y + self.height).min(other.y + other.height);
+
+    let overlap_width = (overlap_x2 - overlap_x1).max(0);
+    let overlap_height = (overlap_y2 - overlap_y1).max(0);
+    let overlap_area = overlap_height * overlap_width;
+    let total_area = self.area() + other.area();
+    return (overlap_area as f32 / total_area as f32) > permissible_overlap;
   }
 
-  // TODO: anything nicer than these casts?
   pub fn get_origin(&self) -> [f32; 2] {
     [self.x as f32, self.y as f32]
   }
@@ -60,7 +77,8 @@ pub enum NeighborhoodType {
 pub struct Problem {
   pub boxes: Vec<ProblemBox>,
   pub score: u32,
-  pub last_moved_rec_id: Option<u32>
+  pub last_moved_rec_id: Option<u32>,
+  permissible_overlap: f32
 }
 
 impl Problem {
@@ -118,7 +136,7 @@ impl Problem {
               return false;
           }
           // Harder check: Rect overlaps with other (overlaps() accounts for self overlap)
-          if problem_box.rectangles.iter().any(|r| r.overlaps(problem_rect)) {
+          if problem_box.rectangles.iter().any(|r| r.overlaps(problem_rect, self.permissible_overlap)) {
             return false;
           }
         }
@@ -190,11 +208,8 @@ impl Problem {
       return neighbors;
     }
 
-    fn get_gemoetric_overlap_neighbors(&self) ->  Vec<Problem> {
-      return Vec::new();
-    }
-
     fn get_permutation_neighbors(&self) -> Vec<Problem> {
+      // TODO: implement
       return Vec::new();
     }
 
@@ -202,7 +217,7 @@ impl Problem {
     pub fn get_neighbors(&self, neighborhood_type: NeighborhoodType) -> Vec<Problem> {
       match neighborhood_type {
           NeighborhoodType::Geometric => self.get_geometric_neighbors(),
-          NeighborhoodType::GeometricOverlap => self.get_gemoetric_overlap_neighbors(),
+          NeighborhoodType::GeometricOverlap => self.get_geometric_neighbors(), // TODO: where to adjust permissible overlap in this?
           NeighborhoodType::Permutation => self.get_permutation_neighbors()
       }
     }
@@ -213,7 +228,8 @@ impl Default for Problem {
         Self {
           boxes: Vec::new(),
           score: 0,
-          last_moved_rec_id: None
+          last_moved_rec_id: None,
+          permissible_overlap: 0.0
         }
     }
 }
@@ -223,7 +239,8 @@ impl Clone for Problem {
       Problem {
         boxes: self.boxes.clone(),
         score: self.score,
-        last_moved_rec_id: self.last_moved_rec_id
+        last_moved_rec_id: self.last_moved_rec_id,
+        permissible_overlap: self.permissible_overlap
       }
   }
 }
