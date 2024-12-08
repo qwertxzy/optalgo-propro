@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use crate::problem::Problem;
+use crate::problem::{Problem, ProblemBox};
 
 pub enum NeighborhoodType {
   Geometric,
@@ -40,6 +40,41 @@ pub fn get_geometric_neighbors(problem_instance :&Problem) -> Vec<Problem> {
 }
 
 pub fn get_permutation_neighbors(problem_instance: &Problem) -> Vec<Problem> {
-  // TODO: implement
-  return Vec::new();
+  // Idea: The solution is encoded in a long list of rectangles
+  //       and we generate a valid solution by placing them top left to bottom right
+  //       in the boxes. 
+  let encoded_problem = encode_permutation_solution(problem_instance);
+
+  // Compute *every* permutation
+  let permutations = encoded_problem.iter().permutations(encoded_problem.len());
+
+  // Decode them back to solutions
+  let neighbors = permutations.map(|p| decode_permutation_solution(p));
+
+  // Return
+  return neighbors;
+}
+
+fn encode_permutation_solution(problem_instance :&Problem) -> Vec<ProblemBox> {
+  // Make a long list of all problem rects
+  let mut rects = Vec::new();
+  for problem_box in problem_instance.boxes.iter() {
+    for problem_rect in problem_box.rectangles.iter() {
+      rects.push(problem_rect);
+    }
+  }
+  // Sort them by box_id, x_coord, y_coord
+  rects.sort_unstable_by_key(|r| (r.get_box_idx(), r.get_origin()));
+  
+  // Null the other values for these rects?
+
+  // Return that list
+  return rects;
+}
+
+fn decode_permutation_solution(boxes: Vec<ProblemBox>) -> Problem {
+  // Initialize empty problem
+  // Go through the rect list and place them in the lowest-possible box
+  // Carry over other problem parameters?
+  // Return new problem
 }
