@@ -5,7 +5,10 @@ Contains different neighborhood types for the solution space.
 from itertools import product
 from copy import deepcopy
 
-from problem import BoxSolution
+from problem import BoxSolution, Rectangle, Box
+
+def flatten(xss):
+    return [x for xs in xss for x in xs]
 
 def get_geometric_neighbors(solution: BoxSolution):
   '''
@@ -40,4 +43,76 @@ def get_permutation_neighbors(solution: BoxSolution):
   Encodes the solution into a long list of rects that get placed from top left-to bottom-right
   in each box. Then computes permutations of this list and turns them back to solutions.
   '''
-  raise NotImplementedError
+  # Back up the box length from the first box (ugh)
+  box_length = solution.boxes[0].side_length
+
+  # Encode solution to list of rects
+  encoded_rects = __encode_solution(solution)
+
+  # Do every possible pairwise swap
+  # TODO: any other nice permutations? flips?
+  neighbors = []
+  for i in range(len(encoded_rects) - 1):
+    encoded_neighbor = deepcopy(encoded_rects)
+    encoded_neighbor[i], encoded_neighbor[i + 1] = encoded_neighbor[i + 1], encoded_neighbor[i]
+    neighbor = __decode_rect_list(encoded_neighbor, box_length)
+    neighbors.append(neighbor)
+
+  return neighbors
+
+def __encode_solution(solution: BoxSolution) -> list[Rectangle]:
+  '''
+  Turns the solution into a list of boxes
+  '''
+  return flatten([b.rects for b in solution.boxes])
+
+def __decode_rect_list(rects: list[Rectangle], box_length: int) -> BoxSolution:
+  '''
+  Turns a list of rectangles into a valid solution to the box-rect problem.
+  '''
+  # TODO: does this work correctly? Needs testing once visualization is working
+  #       no idea why that -1 is nessecary at box_length but the results look good??
+  # Take rects one by one and put them into a new box..
+  # Once one boundary is crossed, start with a new box
+  boxes = [Box(0, box_length)]
+  current_box = boxes[0]
+  current_y = 0 # Current row's y index
+  next_x = 0 # Next x coordinate for a box
+  next_y = 0 # Next y index for a row
+  # Go through rects until all have been processed
+  while rects:
+    rect = rects.pop()
+    # Case 1: Rect fits into this row
+    if next_x + rect.width < box_length - 1 and next_y + rect.height < box_length - 1:
+      # Update this rect's coordinates
+      rect.x = next_x
+      rect.y = current_y
+      current_box.rects.append(rect)
+      # Also update the next corodinate
+      next_x += rect.width
+      next_y = max(next_y, current_y + rect.height)
+      continue
+    #  Case 2: Rects overflows to the right, but fits into a next row within this box
+    if next_x + rect.width >= box_length - 1 and next_y + rect.height < box_length - 1:
+      # NOTE: By specification this must fit here, box_length is guaranteed to be larger than any rect side
+      rect.x = 0
+      rect.y = next_y
+      current_box.rects.append(rect)
+      # Update coordinates for the next box
+      next_x = rect.width
+      current_y = next_y
+      next_y = current_y + rect.height
+      continue
+    # Case 3: Rect does not fit into this box, create a new one and push it to boxes
+    current_box = Box(len(boxes), box_length)
+    rect.x = 0
+    rect.y = 0
+    current_box.rects.append(rect)
+    boxes.append(current_box)
+    # And set the next coordinates again
+    next_x = rect.width
+    current_y = 0
+    next_y = rect.height
+
+  # Construct box solution from list of boxes
+  return BoxSolution(boxes)
