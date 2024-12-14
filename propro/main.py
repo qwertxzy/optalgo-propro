@@ -8,6 +8,7 @@ import FreeSimpleGUI as sg
 
 from problem import BoxSolution, BoxProblem
 from algorithm import LocalSearch
+from neighborhoods import NeighborhoodDefinition
 
 # TODO: All of the visualization & front-end..
 
@@ -57,6 +58,7 @@ if __name__ == "__main__":
   # GUI initialization stuff
   layout = [
     [sg.Button("Tick"), sg.Slider(range=(1, 10), default_value=2, resolution=0.5, key='scaling', enable_events=True, orientation='h')],
+    [sg.Listbox([e.name for e in NeighborhoodDefinition], select_mode='LISTBOX_SELECT_MODE_EXTENDED', enable_events=True, key='neighborhood')],
     [sg.Graph(background_color='white', canvas_size=(500, 500), graph_bottom_left=(-5, 105), graph_top_right=(105, -5), expand_x=True, expand_y=True, key='graph')]
   ]
   window = sg.Window("Optimierungsalgorithmen Programmierprojekt", layout, resizable=True)
@@ -65,7 +67,7 @@ if __name__ == "__main__":
   values = {'scaling': 2} # Hacky way to keep draw_solution above window.read
 
   # OptAlgo stuff
-  my_problem = BoxProblem(10, 10, range(1, 5), range(1, 5))
+  my_problem = BoxProblem(15, 20, range(1, 10), range(1, 10))
   my_algorithm = LocalSearch(my_problem)
 
   while True:
@@ -79,3 +81,5 @@ if __name__ == "__main__":
         # TODO: make this non-blocking
         # https://docs.pysimplegui.com/en/latest/cookbook/original/multi_threading/#the-thread-based-solution
         my_algorithm.tick()
+      case "neighborhood":
+        my_algorithm.set_neighborhood_definition(NeighborhoodDefinition[values['neighborhood'][0]]) # Why is this a list

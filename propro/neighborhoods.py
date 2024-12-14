@@ -3,12 +3,27 @@ Contains different neighborhood types for the solution space.
 '''
 
 from itertools import product
+from enum import Enum, auto
 from copy import deepcopy
 
 from problem import BoxSolution, Rectangle, Box
 
+class NeighborhoodDefinition(Enum):
+  '''Enumeration type for all different neighborhood definitions'''
+  GEOMETRIC = auto()
+  GEOMETRIC_OVERLAP = auto()
+  PERMUTATION = auto()
+
+  def get_neighborhood_method(self):
+    '''Returns the according neighborhood definition method for this type'''
+    match self:
+      case NeighborhoodDefinition.PERMUTATION: return get_permutation_neighbors
+      case NeighborhoodDefinition.GEOMETRIC: return get_geometric_neighbors
+      case NeighborhoodDefinition.GEOMETRIC_OVERLAP: return get_geometric_neighbors # TODO: currying for overlap?
+
 def flatten(xss):
-    return [x for xs in xss for x in xs]
+  '''Flatten nested list'''
+  return [x for xs in xss for x in xs]
 
 def get_geometric_neighbors(solution: BoxSolution):
   '''
@@ -70,8 +85,6 @@ def __decode_rect_list(rects: list[Rectangle], box_length: int) -> BoxSolution:
   '''
   Turns a list of rectangles into a valid solution to the box-rect problem.
   '''
-  # TODO: does this work correctly? Needs testing once visualization is working
-  #       no idea why that -1 is nessecary at box_length but the results look good??
   # Take rects one by one and put them into a new box..
   # Once one boundary is crossed, start with a new box
   boxes = [Box(0, box_length)]
@@ -83,7 +96,7 @@ def __decode_rect_list(rects: list[Rectangle], box_length: int) -> BoxSolution:
   while rects:
     rect = rects.pop()
     # Case 1: Rect fits into this row
-    if next_x + rect.width < box_length - 1 and next_y + rect.height < box_length - 1:
+    if next_x + rect.width < box_length and next_y + rect.height < box_length:
       # Update this rect's coordinates
       rect.x = next_x
       rect.y = current_y
@@ -93,7 +106,7 @@ def __decode_rect_list(rects: list[Rectangle], box_length: int) -> BoxSolution:
       next_y = max(next_y, current_y + rect.height)
       continue
     #  Case 2: Rects overflows to the right, but fits into a next row within this box
-    if next_x + rect.width >= box_length - 1 and next_y + rect.height < box_length - 1:
+    if next_x + rect.width >= box_length and next_y + rect.height < box_length:
       # NOTE: By specification this must fit here, box_length is guaranteed to be larger than any rect side
       rect.x = 0
       rect.y = next_y

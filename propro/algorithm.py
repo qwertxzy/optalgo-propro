@@ -6,7 +6,7 @@ different implementations of an optimization algorithm.
 from abc import ABC, abstractmethod
 from problem import Problem, Solution
 
-from neighborhoods import get_geometric_neighbors
+from neighborhoods import NeighborhoodDefinition
 
 class OptimizationAlgorithm(ABC):
   '''
@@ -35,9 +35,21 @@ class LocalSearch(OptimizationAlgorithm):
   Implements a local search through the solution space
   '''
 
+  neighborhood_definition: NeighborhoodDefinition
+
+  def __init__(self, problem, neighborhood_definition: NeighborhoodDefinition = NeighborhoodDefinition.GEOMETRIC):
+    super().__init__(problem)
+    self.neighborhood_definition = neighborhood_definition
+
+  def set_neighborhood_definition(self, neighborhood_definition: NeighborhoodDefinition):
+    '''Sets the neighborhood definition.'''
+    print(f"Set the neighborhood definition to {neighborhood_definition}")
+    self.neighborhood_definition = neighborhood_definition
+
   def tick(self, n = 1):
     # Get all possible neighbors
-    neighbors = get_geometric_neighbors(self.get_current_solution())
+    get_neighbors = self.neighborhood_definition.get_neighborhood_method()
+    neighbors = get_neighbors(self.get_current_solution())
 
     #  Sort neighbors by score
     neighbors.sort(key=lambda n: n.get_score())
