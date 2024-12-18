@@ -39,7 +39,7 @@ def get_geometric_neighbors(solution: BoxSolution):
       # ... in any box
       for possible_box in solution.boxes:
         # ... in any coordinate within this box
-        for (x, y) in product(range(possible_box.side_length), range(possible_box.side_length)):
+        for (x, y) in product(range(possible_box.side_length - current_rect.width), range(possible_box.side_length - current_rect.height)):
           # ... at any rotation
           for is_flipped in [True, False]:
             neighbor = deepcopy(solution)
@@ -64,12 +64,20 @@ def get_permutation_neighbors(solution: BoxSolution):
   # Encode solution to list of rects
   encoded_rects = __encode_solution(solution)
 
-  # Do every possible pairwise swap
-  # TODO: any other nice permutations? flips?
   neighbors = []
+
+  # Do every possible pairwise swap
   for i in range(len(encoded_rects) - 1):
     encoded_neighbor = deepcopy(encoded_rects)
     encoded_neighbor[i], encoded_neighbor[i + 1] = encoded_neighbor[i + 1], encoded_neighbor[i]
+    neighbor = __decode_rect_list(encoded_neighbor, box_length)
+    neighbors.append(neighbor)
+
+  # Also flip every possible rect
+  for i in range(len(encoded_rects)):
+    encoded_neighbor = deepcopy(encoded_rects)
+    this_rect = encoded_neighbor[i]
+    this_rect.width, this_rect.height = this_rect.height, this_rect.width
     neighbor = __decode_rect_list(encoded_neighbor, box_length)
     neighbors.append(neighbor)
 
@@ -93,8 +101,7 @@ def __decode_rect_list(rects: list[Rectangle], box_length: int) -> BoxSolution:
   next_x = 0 # Next x coordinate for a box
   next_y = 0 # Next y index for a row
   # Go through rects until all have been processed
-  while rects:
-    rect = rects.pop()
+  for rect in rects:
     # Case 1: Rect fits into this row
     if next_x + rect.width < box_length and next_y + rect.height < box_length:
       # Update this rect's coordinates
