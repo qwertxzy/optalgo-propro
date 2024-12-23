@@ -3,11 +3,12 @@ Main application module of this project.
 '''
 
 from math import sqrt, floor
+import threading
 
 import FreeSimpleGUI as sg
 
 from problem import BoxSolution, BoxProblem
-from algorithm import LocalSearch
+from algorithm import LocalSearch, OptimizationAlgorithm
 from neighborhoods import NeighborhoodDefinition
 
 # TODO: All of the visualization & front-end..
@@ -52,12 +53,20 @@ def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float)
       )
       graph.draw_rectangle(rect_top_left, rect_bot_right, fill_color='red')
 
+def tick_thread_wrapper(algo: OptimizationAlgorithm, window: sg.Window):
+  '''Wrapper for executing the tick method in its own thread'''
+  # Disable the tick button
+  window["tick_btn"].update(disabled=True, text="Working...")
+  algo.tick()
+  # Enable button again and write an event value so the main thread can refresh the window
+  window["tick_btn"].update(disabled=False, text="Tick")
+  window.write_event_value("TICK DONE", "")
 
 # Main application part
 if __name__ == "__main__":
   # GUI initialization stuff
   layout = [
-    [sg.Button("Tick"), sg.Slider(range=(1, 10), default_value=2, resolution=0.5, key='scaling', enable_events=True, orientation='h')],
+    [sg.Button("Tick", k="tick_btn"), sg.Slider(range=(1, 10), default_value=2, resolution=0.5, key='scaling', enable_events=True, orientation='h')],
     [sg.Listbox([e.name for e in NeighborhoodDefinition], select_mode='LISTBOX_SELECT_MODE_EXTENDED', enable_events=True, key='neighborhood')],
     [sg.Graph(background_color='white', canvas_size=(500, 500), graph_bottom_left=(-5, 105), graph_top_right=(105, -5), expand_x=True, expand_y=True, key='graph')]
   ]
@@ -77,9 +86,9 @@ if __name__ == "__main__":
     match event:
       case "Exit" | sg.WIN_CLOSED:
         break
-      case "Tick":
-        # TODO: make this non-blocking
-        # https://docs.pysimplegui.com/en/latest/cookbook/original/multi_threading/#the-thread-based-solution
-        my_algorithm.tick()
+      case "tick_btn":
+        threading.Thread(target=tick_thread_wrapper, args=(my_algorithm, window), daemon=True).start()
       case "neighborhood":
         my_algorithm.set_neighborhood_definition(NeighborhoodDefinition[values['neighborhood'][0]]) # Why is this a list
+      case "TICK DONE":
+        window.refresh()
