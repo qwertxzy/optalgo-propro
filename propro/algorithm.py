@@ -4,8 +4,9 @@ different implementations of an optimization algorithm.
 '''
 
 from abc import ABC, abstractmethod
-from problem import Problem, Solution
+import random
 
+from problem import Problem, Solution
 from neighborhoods import NeighborhoodDefinition
 
 class OptimizationAlgorithm(ABC):
@@ -51,12 +52,13 @@ class LocalSearch(OptimizationAlgorithm):
     get_neighbors = self.neighborhood_definition.get_neighborhood_method()
     neighbors = get_neighbors(self.get_current_solution())
 
-    #  Sort neighbors by score
-    neighbors.sort(key=lambda n: n.get_score())
+    # Get the best score from the neighbors
+    best_score = min(neighbors, key=lambda n: n.get_score()).get_score()
 
-    # Pick best neighbor
-    # NOTE: Tends to plateau on two alternating solutions, maybe shuffle pick one of the best ones instead?
-    self.problem.current_solution = neighbors[0]
+    # Pick one of the best neighbors at random
+    # NOTE: Tends to plateau on two alternating solutions, so shuffle pick one of the best ones instead?
+    self.problem.current_solution = random.choice([n for n in neighbors if n.get_score() == best_score])
+
 
 class GreedySearch(OptimizationAlgorithm):
   '''
