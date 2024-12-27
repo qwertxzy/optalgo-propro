@@ -10,8 +10,6 @@ import FreeSimpleGUI as sg
 from neighborhoods import NeighborhoodDefinition
 from algorithm import OptimizationAlgorithm
 
-# TODO: integrate this into main.py
-
 @dataclass
 class RunConfiguration:
   '''Encapsulates all nessecary information to run the application'''
@@ -32,9 +30,22 @@ def show_config_picker() -> RunConfiguration:
   # Frame for the Solver specific options
   solver_layout = [
     [
-      # TODO: these don´t support default values? Maybe switch to listbox after all...
-      sg.ButtonMenu("Algorithm", ["algo", [a.__name__ for a in OptimizationAlgorithm.__subclasses__()]], k="algo"),
-      sg.ButtonMenu("Neighborhood", ["neigh", [e.name for e in NeighborhoodDefinition]], k="neigh")
+      sg.Listbox([a.__name__ for a in OptimizationAlgorithm.__subclasses__()],
+                 # Preselect the first in list
+                 default_values=[OptimizationAlgorithm.__subclasses__()[0].__name__],
+                 k="algo",
+                 select_mode="LISTBOX_SELECT_MODE_SINGLE",
+                 size=(25,5),
+                 no_scrollbar=True
+                 ),
+      sg.Listbox([e.name for e in NeighborhoodDefinition],
+                 # Just the first that python comes up with
+                 default_values=[next(NeighborhoodDefinition.__iter__()).name],
+                 k="neigh",
+                 select_mode="LISTBOX_SELECT_MODE_SINGLE",
+                 size=(25, 5),
+                 no_scrollbar=True
+                 )
      ]
   ]
   solver_frame = sg.Frame("Optimization Algorithm", layout=solver_layout)
@@ -63,9 +74,13 @@ def show_config_picker() -> RunConfiguration:
       case "Exit" | sg.WIN_CLOSED:
         return None
       case "Ok":
+        # Get algorithm class from the name
+        algo_name = values["algo"][0]
+        algo = next(filter(lambda a: a.__name__ == algo_name, OptimizationAlgorithm.__subclasses__()))
+
         config = RunConfiguration(
-          values["algo"],
-          values["neigh"],
+          algo,
+          NeighborhoodDefinition[values["neigh"][0]],
           int(values["n_rect"]),
           range(int(values["x_min"]), int(values["x_max"])),
           range(int(values["y_min"]), int(values["y_max"])),
