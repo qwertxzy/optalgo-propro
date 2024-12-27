@@ -58,16 +58,19 @@ class BoxSolution(Solution):
   '''
   boxes: list[Box]
   score: float
+  currently_permissible_overlap: float
 
   def __init__(self, box_list: list[Box]):
     '''
     Initialize the solution with a list of box objects
     '''
     self.boxes = box_list
+    self.currently_permissible_overlap = 0.0
     self.score = self.get_score()
 
   def __repr__(self):
     s = f"Score: {self.score}\n"
+    s += f"Allowed Overlap: {self.currently_permissible_overlap}\n"
     s += '\n'.join([str(box) for box in self.boxes])
     return s
 
@@ -113,7 +116,7 @@ class BoxSolution(Solution):
 
       # Harder case: Rect may overlap with any other in this box
       for rect_a, rect_b in product(box.rects, box.rects):
-        if rect_a.overlaps(rect_b):
+        if rect_a.overlaps(rect_b, self.currently_permissible_overlap):
           return False
     return True
 
@@ -196,4 +199,3 @@ class Rectangle:
     overlap_height = abs(overlap_y1 - overlap_y2)
     overlap_area = overlap_width * overlap_height
     return (overlap_area / (self.get_area() + other.get_area())) > permissible_overlap
-  

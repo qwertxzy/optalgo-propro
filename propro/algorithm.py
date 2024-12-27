@@ -41,11 +41,18 @@ class LocalSearch(OptimizationAlgorithm):
   def __init__(self, problem, neighborhood_definition: NeighborhoodDefinition = NeighborhoodDefinition.GEOMETRIC):
     super().__init__(problem)
     self.neighborhood_definition = neighborhood_definition
+    # TODO: just set permissible overlap here, should be set by some kind of schedule?
+    #       can only be tested once neighborhood exploration speeds up..
+    if neighborhood_definition == NeighborhoodDefinition.GEOMETRIC_OVERLAP:
+      self.problem.currently_permissible_overlap = 0.2
 
   def set_neighborhood_definition(self, neighborhood_definition: NeighborhoodDefinition):
     '''Sets the neighborhood definition.'''
     print(f"Set the neighborhood definition to {neighborhood_definition}")
     self.neighborhood_definition = neighborhood_definition
+    # See todo in __init__
+    if neighborhood_definition == NeighborhoodDefinition.GEOMETRIC_OVERLAP:
+      self.problem.currently_permissible_overlap = 0.2
 
   def tick(self, n = 1):
     # Get all possible neighbors

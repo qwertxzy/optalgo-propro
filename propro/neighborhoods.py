@@ -19,7 +19,7 @@ class NeighborhoodDefinition(Enum):
     match self:
       case NeighborhoodDefinition.PERMUTATION: return get_permutation_neighbors
       case NeighborhoodDefinition.GEOMETRIC: return get_geometric_neighbors
-      case NeighborhoodDefinition.GEOMETRIC_OVERLAP: return get_geometric_neighbors # TODO: currying for overlap?
+      case NeighborhoodDefinition.GEOMETRIC_OVERLAP: return get_geometric_neighbors
 
 def flatten(xss):
   '''Flatten nested list'''
