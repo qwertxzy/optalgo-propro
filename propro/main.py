@@ -11,8 +11,6 @@ from problem import BoxSolution, BoxProblem
 from algorithm import LocalSearch, OptimizationAlgorithm
 from neighborhoods import NeighborhoodDefinition
 
-# TODO: All of the visualization & front-end..
-
 # fine-tuning constants
 # TODO: should probably be exposed via the GUI?
 BOX_SPACING = 2
@@ -57,16 +55,25 @@ def tick_thread_wrapper(algo: OptimizationAlgorithm, window: sg.Window):
   '''Wrapper for executing the tick method in its own thread'''
   # Disable the tick button
   window["tick_btn"].update(disabled=True, text="Working...")
-  algo.tick()
+
+  # Get number of ticks to run
+  # TODO: really needs a "run continuous" mode..
+  num_ticks = int(window["num_ticks"].get())
+  print(num_ticks)
+  algo.tick(num_ticks)
+
   # Enable button again and write an event value so the main thread can refresh the window
   window["tick_btn"].update(disabled=False, text="Tick")
   window.write_event_value("TICK DONE", "")
 
 # Main application part
+# TODO: needs to be consolidated with the config picker
+# Idea: Code below in its own method with a RunConfiguration param, which gets
+#       instantiated either by config.py or an argparser
 if __name__ == "__main__":
   # GUI initialization stuff
   layout = [
-    [sg.Button("Tick", k="tick_btn"), sg.Slider(range=(1, 10), default_value=2, resolution=0.5, key='scaling', enable_events=True, orientation='h')],
+    [sg.Button("Tick", k="tick_btn"), sg.Text("Number of ticks"), sg.Input("1", k="num_ticks"), sg.Slider(range=(1, 10), default_value=2, resolution=0.5, key='scaling', enable_events=True, orientation='h')],
     [sg.Listbox([e.name for e in NeighborhoodDefinition], select_mode='LISTBOX_SELECT_MODE_EXTENDED', enable_events=True, key='neighborhood')],
     [sg.Graph(background_color='white', canvas_size=(500, 500), graph_bottom_left=(-5, 105), graph_top_right=(105, -5), expand_x=True, expand_y=True, key='graph')]
   ]
