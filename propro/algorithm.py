@@ -20,9 +20,9 @@ class OptimizationAlgorithm(ABC):
     self.problem = problem
 
   @abstractmethod
-  def tick(self, n: int = 1) -> Solution:
+  def tick(self) -> Solution:
     '''
-    Runs the algorithm for n(=1) iterations.
+    Runs the algorithm for one iteration.
     '''
 
   def get_current_solution(self) -> Solution:
@@ -54,7 +54,7 @@ class LocalSearch(OptimizationAlgorithm):
     if neighborhood_definition == NeighborhoodDefinition.GEOMETRIC_OVERLAP:
       self.problem.currently_permissible_overlap = 0.2
 
-  def tick(self, n = 1):
+  def tick(self):
     # Get all possible neighbors
     get_neighbors = self.neighborhood_definition.get_neighborhood_method()
     neighbors = get_neighbors(self.get_current_solution())

@@ -3,13 +3,15 @@ Main application module of this project.
 '''
 
 from math import sqrt, floor
+from argparse import ArgumentParser
 import threading
 
 import FreeSimpleGUI as sg
 
 from problem import BoxSolution, BoxProblem
-from algorithm import LocalSearch, OptimizationAlgorithm
+from algorithm import OptimizationAlgorithm
 from neighborhoods import NeighborhoodDefinition
+from config import RunConfiguration, show_config_picker
 
 # fine-tuning constants
 # TODO: should probably be exposed via the GUI?
@@ -59,23 +61,28 @@ def tick_thread_wrapper(algo: OptimizationAlgorithm, window: sg.Window):
   # Get number of ticks to run
   # TODO: really needs a "run continuous" mode..
   num_ticks = int(window["num_ticks"].get())
-  print(num_ticks)
-  algo.tick(num_ticks)
+  for _ in range(num_ticks):
+    algo.tick()
+    window.write_event_value("TICK DONE", "")
 
-  # Enable button again and write an event value so the main thread can refresh the window
+  # Enable button again
   window["tick_btn"].update(disabled=False, text="Tick")
-  window.write_event_value("TICK DONE", "")
 
 # Main application part
-# TODO: needs to be consolidated with the config picker
-# Idea: Code below in its own method with a RunConfiguration param, which gets
-#       instantiated either by config.py or an argparser
-if __name__ == "__main__":
+def show_app(config: RunConfiguration):
+  '''Shows the main application for algorithm visualization'''  
   # GUI initialization stuff
   layout = [
-    [sg.Button("Tick", k="tick_btn"), sg.Text("Number of ticks"), sg.Input("1", k="num_ticks"), sg.Slider(range=(1, 10), default_value=2, resolution=0.5, key='scaling', enable_events=True, orientation='h')],
-    [sg.Listbox([e.name for e in NeighborhoodDefinition], select_mode='LISTBOX_SELECT_MODE_EXTENDED', enable_events=True, key='neighborhood')],
-    [sg.Graph(background_color='white', canvas_size=(500, 500), graph_bottom_left=(-5, 105), graph_top_right=(105, -5), expand_x=True, expand_y=True, key='graph')]
+    [
+      sg.Button("Tick", k="tick_btn"),
+      sg.Text("Number of ticks"),
+      sg.Input("1", k="num_ticks"),
+      sg.Slider(range=(1, 10), default_value=2, resolution=0.5, key='scaling', enable_events=True, orientation='h'),
+      sg.Listbox([e.name for e in NeighborhoodDefinition], select_mode='LISTBOX_SELECT_MODE_EXTENDED', enable_events=True, key='neighborhood', default_values=[config.neighborhood.name], size=(25, 3))
+    ],
+    [
+      sg.Graph(background_color='white', canvas_size=(500, 500), graph_bottom_left=(-5, 105), graph_top_right=(105, -5), expand_x=True, expand_y=True, key='graph')
+    ]
   ]
   window = sg.Window("Optimierungsalgorithmen Programmierprojekt", layout, resizable=True)
   graph = window['graph']
@@ -83,19 +90,60 @@ if __name__ == "__main__":
   values = {'scaling': 2} # Hacky way to keep draw_solution above window.read
 
   # OptAlgo stuff
-  my_problem = BoxProblem(15, 20, range(1, 10), range(1, 10))
-  my_algorithm = LocalSearch(my_problem)
+  optimization_problem = BoxProblem(
+    box_length=config.box_length,
+    n_rect=config.rect_number,
+    w_range=config.rect_x_size,
+    h_range=config.rect_y_size
+  )
+  optimization_algorithm = config.algorithm(optimization_problem, config.neighborhood)
 
   while True:
-    draw_solution(graph, my_algorithm.get_current_solution(), scaling_factor=values['scaling'])
+    draw_solution(graph, optimization_algorithm.get_current_solution(), scaling_factor=values['scaling'])
     event, values = window.read()
 
     match event:
       case "Exit" | sg.WIN_CLOSED:
+        # TODO: needs to kill the algorithm thread if its still running
         break
       case "tick_btn":
-        threading.Thread(target=tick_thread_wrapper, args=(my_algorithm, window), daemon=True).start()
+        threading.Thread(target=tick_thread_wrapper, args=(optimization_algorithm, window), daemon=True).start()
       case "neighborhood":
-        my_algorithm.set_neighborhood_definition(NeighborhoodDefinition[values['neighborhood'][0]]) # Why is this a list
+        optimization_algorithm.set_neighborhood_definition(NeighborhoodDefinition[values['neighborhood'][0]]) # Why is this a list
       case "TICK DONE":
         window.refresh()
+
+# Entrypoint, will either get config as args or via gui dialogue
+if __name__ == "__main__":
+  # Start by parsing args
+  parser = ArgumentParser()
+  parser.add_argument("--algorithm", type=str)
+  parser.add_argument("--neighborhood", type=str)
+  parser.add_argument("--rect-number", type=int)
+  parser.add_argument("--rect-x", type=str) # e.g. 5-12
+  parser.add_argument("--rect-y", type=str)
+  parser.add_argument("--box-length", type=int)
+
+  args = parser.parse_args()
+
+  # Try and construct run config from args,
+  # and if it fails, show dialogue
+
+  try:
+    # Get algorithm class from the name
+    algo = next(filter(lambda a: a.__name__ == args.algorithm, OptimizationAlgorithm.__subclasses__()))
+    config = RunConfiguration(
+      algorithm=algo,
+      neighborhood=NeighborhoodDefinition[args.neighborhood],
+      rect_number=args.rect_number,
+      rect_x_size=range(*[int(i) for i in args.rect_x.split("-")]),
+      rect_y_size=range(*[int(i) for i in args.rect_y.split("-")]),
+      box_length=args.box_length
+    )
+  except Exception as e:
+    print("Could not get configuration from args, showing config picker..")
+    print(e)
+    config = show_config_picker()
+
+  # Launch main app with the config
+  show_app(config)

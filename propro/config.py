@@ -15,8 +15,8 @@ class RunConfiguration:
   '''Encapsulates all nessecary information to run the application'''
 
   # Solver specific
-  algorithm: str #OptimizationAlgorithm
-  neighborhood: str #NeighborhoodDefinition
+  algorithm: OptimizationAlgorithm
+  neighborhood: NeighborhoodDefinition
 
   # Problem specific
   rect_number: int
@@ -86,6 +86,7 @@ def show_config_picker() -> RunConfiguration:
           range(int(values["y_min"]), int(values["y_max"])),
           int(values["box_len"])
         )
+        window.close()
         return config
 
 # If called directly, just show the dialogue and print the resulting value
