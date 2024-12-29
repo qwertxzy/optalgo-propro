@@ -6,7 +6,7 @@ concrete implementation for the box-rectangle problem given.
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from random import choice
-from itertools import product
+from itertools import combinations
 
 class Problem(ABC):
   '''
@@ -97,14 +97,40 @@ class BoxSolution(Solution):
     new_box = self.boxes[new_box_idx]
     new_box.rects.append(current_rect)
 
-  # TODO: include some sort of factor for how tightly packed a box is?
-  # TODO: refactor into own file to implement multiple options
-  def get_score(self) -> float:
+  def get_score(self) -> tuple[int, int]:
     # If solution is invalid, score it 0
     if not self.is_valid():
       return 0
-    # Otherwise, count boxes with more than 0 rects in them
-    return len(list(filter(lambda b: len(b.rects) > 0, self.boxes)))
+
+    # Count non-empty boxes and incident edges between rects as scoring criteria
+    box_counts =  len(list(filter(lambda b: len(b.rects) > 0, self.boxes)))
+    incident_edges = -self.compute_incident_edges() # Minus because we are trying to minimize
+    return (box_counts, incident_edges)
+
+  # NOTE: seems to have been a good idea, but doesn't account for placing a rect at the edge of a box
+  def compute_incident_edges(self) -> int:
+    '''
+    Computes the number of unit lengths of edges
+    that overlap from adjacent rectangles
+    '''
+    edges = 0
+    # Go over all boxes
+    for box in self.boxes:
+      # Go over all possible pairs of rects within this box
+      for (rect_a, rect_b) in combinations(box.rects, 2):
+        # Call the one with smaller origin left, the other right rect
+        left_rect, right_rect = sorted([rect_a, rect_b], key=lambda r: (r.x, r.y))
+
+        # Check for incidence in x coordinate and add possible overlap
+        if left_rect.x + left_rect.width == right_rect.x:
+          overlap = min(left_rect.y + left_rect.height, right_rect.y + right_rect.height) - max(left_rect.y, right_rect.y)
+          edges += max(overlap, 0)
+        # Check for incidence in y coordinate and add possible overlap
+        if left_rect.y + left_rect.height == right_rect.y:
+          overlap = min(left_rect.x + left_rect.width, right_rect.x + right_rect.width) - max(left_rect.x, right_rect.x)
+          edges += max(overlap, 0)
+    return edges
+
 
   def is_valid(self):
     # Go over all rects in all boxes
@@ -115,7 +141,7 @@ class BoxSolution(Solution):
           return False
 
       # Harder case: Rect may overlap with any other in this box
-      for rect_a, rect_b in product(box.rects, box.rects):
+      for rect_a, rect_b in combinations(box.rects, 2):
         if rect_a.overlaps(rect_b, self.currently_permissible_overlap):
           return False
     return True
