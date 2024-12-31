@@ -87,7 +87,7 @@ def __encode_solution(solution: BoxSolution) -> list[Rectangle]:
   '''
   Turns the solution into a list of boxes
   '''
-  return flatten([b.rects for b in solution.boxes])
+  return flatten([b.rects.values() for b in solution.boxes.values()])
 
 def __decode_rect_list(rects: list[Rectangle], box_length: int) -> BoxSolution:
   '''
