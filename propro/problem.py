@@ -56,22 +56,23 @@ class BoxSolution(Solution):
   Holds a current solution of the box-rect problem.
   Will get copied and constructed a lot, so should probably be as light-weight as possible.
   '''
-  boxes: list[Box]
-  score: float
+  # Lookup box id -> box obj
+  boxes: dict[Box]
   currently_permissible_overlap: float
 
   def __init__(self, box_list: list[Box]):
     '''
     Initialize the solution with a list of box objects
     '''
-    self.boxes = box_list
     self.currently_permissible_overlap = 0.0
-    self.score = self.get_score()
+    self.boxes = dict()
+    for box in box_list:
+      self.boxes[box.id] = box
 
   def __repr__(self):
-    s = f"Score: {self.score}\n"
+    s = f"Score: {self.get_score()}\n"
     s += f"Allowed Overlap: {self.currently_permissible_overlap}\n"
-    s += '\n'.join([str(box) for box in self.boxes])
+    s += '\n'.join([str(box) for box in self.boxes.values()])
     return s
 
   def move_rect(self, rect_id: int, from_box_idx: int, new_x: int, new_y: int, new_box_idx: int, flip: bool):
@@ -80,7 +81,7 @@ class BoxSolution(Solution):
     '''
     # Get rect in old box
     current_box = self.boxes[from_box_idx]
-    current_rect = next(filter(lambda r: r.id == rect_id, current_box.rects))
+    current_rect = current_box.rects[rect_id]
 
     # Update rect coordinates
     current_rect.x = new_x
@@ -93,9 +94,13 @@ class BoxSolution(Solution):
       return
 
     # Otherwise, move the box from the old box's rect list to the new one
-    current_box.rects.remove(current_rect)
+    current_rect = current_box.rects.pop(rect_id)
     new_box = self.boxes[new_box_idx]
-    new_box.rects.append(current_rect)
+    new_box.rects[rect_id] = current_rect
+
+    # If the current box is now empty, remove it from the solution
+    if len(current_box.rects) == 0:
+      self.boxes.pop(from_box_idx)
 
   def get_score(self) -> tuple[int, int]:
     # If solution is invalid, score it 0
@@ -103,7 +108,7 @@ class BoxSolution(Solution):
       return 0
 
     # Count non-empty boxes and incident edges between rects as scoring criteria
-    box_counts =  len(list(filter(lambda b: len(b.rects) > 0, self.boxes)))
+    box_counts =  len(self.boxes)
     incident_edges = -self.compute_incident_edges() # Minus because we are trying to minimize
     return (box_counts, incident_edges)
 
@@ -115,9 +120,9 @@ class BoxSolution(Solution):
     '''
     edges = 0
     # Go over all boxes
-    for box in self.boxes:
+    for box in self.boxes.values():
       # Go over all possible pairs of rects within this box
-      for (rect_a, rect_b) in combinations(box.rects, 2):
+      for (rect_a, rect_b) in combinations(box.rects.values(), 2):
         # Call the one with smaller origin left, the other right rect
         left_rect, right_rect = sorted([rect_a, rect_b], key=lambda r: (r.x, r.y))
 
@@ -134,14 +139,14 @@ class BoxSolution(Solution):
 
   def is_valid(self):
     # Go over all rects in all boxes
-    for box in self.boxes:
+    for box in self.boxes.values():
       # Easy case: Rect is out-of-bounds
-      for rect in box.rects:
+      for rect in box.rects.values():
         if rect.x + rect.width > box.side_length or rect.y + rect.height > box.side_length:
           return False
 
       # Harder case: Rect may overlap with any other in this box
-      for rect_a, rect_b in combinations(box.rects, 2):
+      for rect_a, rect_b in combinations(box.rects.values(), 2):
         if rect_a.overlaps(rect_b, self.currently_permissible_overlap):
           return False
     return True
@@ -150,8 +155,8 @@ class Box:
   '''
   One box of the box-rect problem.
   '''
-  # TODO: a dict with rect id -> rect would probably be more performant here?
-  rects: list[Rectangle]
+  # Lookup from rect id -> rect obj
+  rects: dict[int, Rectangle]
   id: int
   side_length: int
 
@@ -166,7 +171,9 @@ class Box:
     '''
     self.id = b_id
     self.side_length = side_length
-    self.rects = list(rects)
+    self.rects = dict()
+    for rect in rects:
+      self.rects[rect.id] = rect
 
 class Rectangle:
   '''

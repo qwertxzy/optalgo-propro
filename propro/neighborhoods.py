@@ -33,16 +33,16 @@ def get_geometric_neighbors(solution: BoxSolution):
   neighbors = []
 
   # Iterate over all rectangles in all boxes
-  for current_box in solution.boxes:
-    for current_rect in current_box.rects:
+  for current_box in solution.boxes.values():
+    for current_rect in current_box.rects.values():
       # Now iterate over all possible moves! A rect can be placed
       # ... in any box
-      for possible_box in solution.boxes:
+      for possible_box in solution.boxes.values():
         # ... in any coordinate within this box
         for (x, y) in product(range(possible_box.side_length - current_rect.width), range(possible_box.side_length - current_rect.height)):
           # ... at any rotation
           for is_flipped in [True, False]:
-            neighbor = deepcopy(solution)
+            neighbor = deepcopy(solution) # <- spensy, is this really needed?
             neighbor.move_rect(current_rect.id, current_box.id, x, y, possible_box.id, is_flipped)
 
             # Skip infeasible neighbors
@@ -107,7 +107,7 @@ def __decode_rect_list(rects: list[Rectangle], box_length: int) -> BoxSolution:
       # Update this rect's coordinates
       rect.x = next_x
       rect.y = current_y
-      current_box.rects.append(rect)
+      current_box.rects[rect.id] = rect
       # Also update the next corodinate
       next_x += rect.width
       next_y = max(next_y, current_y + rect.height)
@@ -117,7 +117,7 @@ def __decode_rect_list(rects: list[Rectangle], box_length: int) -> BoxSolution:
       # NOTE: By specification this must fit here, box_length is guaranteed to be larger than any rect side
       rect.x = 0
       rect.y = next_y
-      current_box.rects.append(rect)
+      current_box.rects[rect.id] = rect
       # Update coordinates for the next box
       next_x = rect.width
       current_y = next_y
@@ -127,7 +127,7 @@ def __decode_rect_list(rects: list[Rectangle], box_length: int) -> BoxSolution:
     current_box = Box(len(boxes), box_length)
     rect.x = 0
     rect.y = 0
-    current_box.rects.append(rect)
+    current_box.rects[rect.id] = rect
     boxes.append(current_box)
     # And set the next coordinates again
     next_x = rect.width
