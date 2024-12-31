@@ -112,7 +112,6 @@ class BoxSolution(Solution):
     incident_edges = -self.compute_incident_edges() # Minus because we are trying to minimize
     return (box_counts, incident_edges)
 
-  # NOTE: seems to have been a good idea, but doesn't account for placing a rect at the edge of a box
   def compute_incident_edges(self) -> int:
     '''
     Computes the number of unit lengths of edges
@@ -134,6 +133,17 @@ class BoxSolution(Solution):
         if left_rect.y + left_rect.height == right_rect.y:
           overlap = min(left_rect.x + left_rect.width, right_rect.x + right_rect.width) - max(left_rect.x, right_rect.x)
           edges += max(overlap, 0)
+      # Go over all rects (again?) to count edges on the box edge
+      # ..any way to make this neater?
+      for rect in box.rects.values():
+        if rect.x == 0:
+          edges += rect.height
+        if rect.x + rect.width == box.side_length:
+          edges += rect.height
+        if rect.y == 0:
+          edges += rect.width
+        if rect.y + rect.height == box.side_length:
+          edges += rect.width
     return edges
 
 
