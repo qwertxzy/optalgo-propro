@@ -133,6 +133,10 @@ class BoxSolution(Solution):
         if left_rect.y + left_rect.height == right_rect.y:
           overlap = min(left_rect.x + left_rect.width, right_rect.x + right_rect.width) - max(left_rect.x, right_rect.x)
           edges += max(overlap, 0)
+
+      # To weigh these more than the box edge, multiply current count by 2
+      edges *= 2
+
       # Go over all rects (again?) to count edges on the box edge
       # ..any way to make this neater?
       for rect in box.rects.values():
@@ -172,7 +176,7 @@ class Box:
 
   def __repr__(self):
     s = f"{self.id}: "
-    s += ' '.join([str(r) for r in self.rects])
+    s += ' '.join([str(r) for r in self.rects.values()])
     return s
 
   def __init__(self, b_id: int, side_length: int, *rects: Rectangle):
@@ -184,6 +188,16 @@ class Box:
     self.rects = dict()
     for rect in rects:
       self.rects[rect.id] = rect
+
+  # memoize?
+  # IDEA: A box could keep track of all the free spaces within it,
+  #       so we can minimize the rects being placed invalidly
+  def is_coord_free(self, x: int, y: int) -> bool:
+    '''Checks whether a given coordinate is occupied by a rectangle'''
+    for rect in self.rects.values():
+      if rect.contains(x, y):
+        return False
+    return True
 
 class Rectangle:
   '''
@@ -214,6 +228,15 @@ class Rectangle:
   def get_area(self) -> int:
     '''Compute area of the rectangle'''
     return self.width * self.height
+
+  def contains(self, x: int, y:int) -> bool:
+    '''Checks whether a given x/y coordinate lies within this rect'''
+    return all([
+      self.x <= x,
+      self.x + self.width > x,
+      self.y <= y,
+      self.y + self.height > y
+    ])
 
   def overlaps(self, other: Rectangle, permissible_overlap: float = 0.0) -> bool:
     '''Checks whether two rectangles overlap, with a permissible amount.'''

@@ -42,7 +42,12 @@ def get_geometric_neighbors(solution: BoxSolution):
         for (x, y) in product(range(possible_box.side_length - current_rect.width), range(possible_box.side_length - current_rect.height)):
           # ... at any rotation
           for is_flipped in [True, False]:
-            neighbor = deepcopy(solution) # <- spensy, is this really needed?
+
+            # Testing: Check if this space is free to begin with to limit the number of neighbors explored?
+            if not possible_box.is_coord_free(x, y):
+              continue
+
+            neighbor = deepcopy(solution) # <- spensy
             neighbor.move_rect(current_rect.id, current_box.id, x, y, possible_box.id, is_flipped)
 
             # Skip infeasible neighbors
@@ -51,6 +56,7 @@ def get_geometric_neighbors(solution: BoxSolution):
               continue
 
             neighbors.append(neighbor)
+  print(f"Explored {len(neighbors)} neighbors")
   return neighbors
 
 def get_permutation_neighbors(solution: BoxSolution):
