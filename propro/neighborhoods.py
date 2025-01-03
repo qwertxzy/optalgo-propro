@@ -2,7 +2,6 @@
 Contains different neighborhood types for the solution space.
 '''
 
-from itertools import product
 from enum import Enum, auto
 from copy import deepcopy
 
@@ -33,37 +32,33 @@ def get_geometric_neighbors(solution: BoxSolution):
   neighbors = []
 
   # Iterate over all rectangles in all boxes
-  for current_box in solution.boxes.values():
+  for current_box in sorted(solution.boxes.values(), key=lambda box: len(box.rects)):
     for current_rect in current_box.rects.values():
       # Now iterate over all possible moves! A rect can be placed
       # ... in any box
       for possible_box in solution.boxes.values():
         # ... in any free coordinate within this box
         for (x, y) in current_box.get_free_coordinates():
-
-          # Skip iteration if the rect would overflow to the right/bottom
-          if x + current_rect.width >= current_box.side_length:
-            continue
-          if y + current_rect.height >= current_box.side_length:
-            continue
-
           # ... at any rotation
           for is_flipped in [True, False]:
+
+            # Skip iteration if the rect would overflow to the right/bottom
+            if x + current_rect.width > current_box.side_length:
+              continue
+            if y + current_rect.height > current_box.side_length:
+              continue
+
 
             neighbor = deepcopy(solution) # <- spensy
             neighbor.move_rect(current_rect.id, current_box.id, x, y, possible_box.id, is_flipped)
 
-            # Skip infeasible neighbors
-            # TODO: why does this still produce overflowing boxes?!
-            # if neighbor.get_score() == (0, 0):
-            #   continue
-
             neighbors.append(neighbor)
-            # IDEA: Once a neighbor is found that reduces the main scoring criteria, early return?
+            # Once a neighbor is found that reduces the main scoring criteria, early return?
+            # Dramatically speeds up early convergence
             if neighbor.get_score()[0] < solution.get_score()[0]:
-              print(f"Explored {len(neighbors)} neighbors")
+              print(f"Early returned with {len(neighbors)} neighbors")
               return neighbors
-  print(f"Explored {len(neighbors)} neighbors")
+  print(f"Explored all {len(neighbors)} neighbors")
   return neighbors
 
 def get_permutation_neighbors(solution: BoxSolution):

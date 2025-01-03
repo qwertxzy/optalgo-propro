@@ -59,6 +59,10 @@ class LocalSearch(OptimizationAlgorithm):
     get_neighbors = self.neighborhood_definition.get_neighborhood_method()
     neighbors = get_neighbors(self.get_current_solution())
 
+    if len(neighbors) == 0:
+      print("Algorithm stuck! No neighbors could be found.")
+      return
+
     # Get the best score from the neighbors
     best_score = min(neighbors, key=lambda n: n.get_score()).get_score()
 
