@@ -38,22 +38,25 @@ def get_geometric_neighbors(solution: BoxSolution):
       # Now iterate over all possible moves! A rect can be placed
       # ... in any box
       for possible_box in solution.boxes.values():
-        # ... in any coordinate within this box
-        for (x, y) in product(range(possible_box.side_length - current_rect.width), range(possible_box.side_length - current_rect.height)):
+        # ... in any free coordinate within this box
+        for (x, y) in current_box.get_free_coordinates():
+
+          # Skip iteration if the rect would overflow to the right/bottom
+          if x + current_rect.width >= current_box.side_length:
+            continue
+          if y + current_rect.height >= current_box.side_length:
+            continue
+
           # ... at any rotation
           for is_flipped in [True, False]:
-
-            # Testing: Check if this space is free to begin with to limit the number of neighbors explored?
-            if not possible_box.is_coord_free(x, y):
-              continue
 
             neighbor = deepcopy(solution) # <- spensy
             neighbor.move_rect(current_rect.id, current_box.id, x, y, possible_box.id, is_flipped)
 
             # Skip infeasible neighbors
-            # TODO: maybe temporary infeasible solutions might still be worth exploring?
-            if neighbor.get_score() == 0:
-              continue
+            # TODO: why does this still produce overflowing boxes?!
+            # if neighbor.get_score() == (0, 0):
+            #   continue
 
             neighbors.append(neighbor)
   print(f"Explored {len(neighbors)} neighbors")

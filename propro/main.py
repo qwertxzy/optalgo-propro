@@ -53,6 +53,19 @@ def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float)
       )
       graph.draw_rectangle(rect_top_left, rect_bot_right, fill_color='red')
 
+    # Debug or leave this in? Maybe as an option
+    # Paint the box's free coordinate search space
+    for (x, y) in box.get_free_coordinates():
+      coord_top_left = (
+        box_top_left[0] + (x + 0.25) * scaling_factor,
+        box_top_left[1] + (y + 0.25) * scaling_factor
+      )
+      coord_bot_right = (
+        box_top_left[0] + (x + 0.75) * scaling_factor,
+        box_top_left[1] + (y + 0.75) * scaling_factor
+      )
+      graph.draw_rectangle(coord_top_left, coord_bot_right, fill_color='blue')
+
 def tick_thread_wrapper(algo: OptimizationAlgorithm, window: sg.Window):
   '''Wrapper for executing the tick method in its own thread'''
   # Disable the tick button

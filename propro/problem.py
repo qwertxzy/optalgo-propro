@@ -5,8 +5,9 @@ concrete implementation for the box-rectangle problem given.
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
+import sys
 from random import choice
-from itertools import combinations
+from itertools import combinations, product
 
 class Problem(ABC):
   '''
@@ -81,7 +82,7 @@ class BoxSolution(Solution):
     '''
     # Get rect in old box
     current_box = self.boxes[from_box_idx]
-    current_rect = current_box.rects[rect_id]
+    current_rect = current_box.remove_rect(rect_id)
 
     # Update rect coordinates
     current_rect.x = new_x
@@ -89,23 +90,17 @@ class BoxSolution(Solution):
     if flip:
       current_rect.width, current_rect.height = current_rect.height, current_rect.width
 
-    # If the box stays the same we're done here
-    if from_box_idx == new_box_idx:
-      return
-
-    # Otherwise, move the box from the old box's rect list to the new one
-    current_rect = current_box.rects.pop(rect_id)
     new_box = self.boxes[new_box_idx]
-    new_box.rects[rect_id] = current_rect
+    new_box.add_rect(current_rect)
 
     # If the current box is now empty, remove it from the solution
     if len(current_box.rects) == 0:
       self.boxes.pop(from_box_idx)
 
   def get_score(self) -> tuple[int, int]:
-    # If solution is invalid, score it 0
+    # Very large number
     if not self.is_valid():
-      return 0
+      return (sys.maxsize, sys.maxsize)
 
     # Count non-empty boxes and incident edges between rects as scoring criteria
     box_counts =  len(self.boxes)
@@ -173,6 +168,8 @@ class Box:
   rects: dict[int, Rectangle]
   id: int
   side_length: int
+  # Quick way to get free coordinates in this box
+  free_coords: set[tuple[int, int]]
 
   def __repr__(self):
     s = f"{self.id}: "
@@ -186,18 +183,30 @@ class Box:
     self.id = b_id
     self.side_length = side_length
     self.rects = dict()
+    self.free_coords = set(product(range(side_length), range(side_length)))
     for rect in rects:
-      self.rects[rect.id] = rect
+      self.add_rect(rect)
 
-  # memoize?
-  # IDEA: A box could keep track of all the free spaces within it,
-  #       so we can minimize the rects being placed invalidly
-  def is_coord_free(self, x: int, y: int) -> bool:
-    '''Checks whether a given coordinate is occupied by a rectangle'''
-    for rect in self.rects.values():
-      if rect.contains(x, y):
-        return False
-    return True
+  def add_rect(self, rect: Rectangle):
+    '''Places a rectangle within this box.'''
+    # Add rect to internal dict
+    self.rects[rect.id] = rect
+    # Update free coordinate set
+    self.free_coords = self.free_coords - rect.get_all_coordinates()
+
+  def remove_rect(self, rect_id: int) -> Rectangle:
+    '''Removes a rectangle from this box.'''
+    # Set coordinates as free again
+    self.free_coords = self.free_coords | self.rects[rect_id].get_all_coordinates()
+    # Remove rect from internal dict
+    return self.rects.pop(rect_id)
+
+  def get_free_coordinates(self) -> set[tuple[int, int]]:
+    '''Returns all currently free x/y coordinates in this box.'''
+    # TODO: This will currently not work with the overlap neighborhood
+    #       But it leaves a nice place for adjusting the search space
+    # IDEA: only explore free coordinates next to other boxes or on the box edge
+    return self.free_coords
 
 class Rectangle:
   '''
@@ -228,6 +237,13 @@ class Rectangle:
   def get_area(self) -> int:
     '''Compute area of the rectangle'''
     return self.width * self.height
+
+  def get_all_coordinates(self) -> set[tuple[int, int]]:
+    '''Returns all possible points in this rect.'''
+    return set(product(
+      range(self.x, self.x + self.width),
+      range(self.y, self.y + self.height)
+    ))
 
   def contains(self, x: int, y:int) -> bool:
     '''Checks whether a given x/y coordinate lies within this rect'''

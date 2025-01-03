@@ -65,6 +65,7 @@ class LocalSearch(OptimizationAlgorithm):
     # Pick one of the best neighbors at random
     # NOTE: Tends to plateau on two alternating solutions, so shuffle pick one of the best ones instead?
     self.problem.current_solution = random.choice([n for n in neighbors if n.get_score() == best_score])
+    print(f"Current score: {best_score}")
 
 
 class GreedySearch(OptimizationAlgorithm):
