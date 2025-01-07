@@ -50,7 +50,7 @@ class BoxProblem(Problem):
       boxes.append(Box(n, box_length, rect))
 
     # Finally, initialize the solution with list of boxes
-    self.current_solution = BoxSolution(boxes)
+    self.current_solution = BoxSolution(box_length, boxes)
 
 class BoxSolution(Solution):
   '''
@@ -59,13 +59,15 @@ class BoxSolution(Solution):
   '''
   # Lookup box id -> box obj
   boxes: dict[Box]
+  side_length: int
   currently_permissible_overlap: float
 
-  def __init__(self, box_list: list[Box]):
+  def __init__(self, side_length: int, box_list: list[Box]):
     '''
     Initialize the solution with a list of box objects
     '''
     self.currently_permissible_overlap = 0.0
+    self.side_length = side_length
     self.boxes = dict()
     for box in box_list:
       self.boxes[box.id] = box
@@ -137,11 +139,11 @@ class BoxSolution(Solution):
       for rect in box.rects.values():
         if rect.x == 0:
           edges += rect.height
-        if rect.x + rect.width == box.side_length:
+        if rect.x + rect.width == self.side_length:
           edges += rect.height
         if rect.y == 0:
           edges += rect.width
-        if rect.y + rect.height == box.side_length:
+        if rect.y + rect.height == self.side_length:
           edges += rect.width
     return edges
 
@@ -151,7 +153,7 @@ class BoxSolution(Solution):
     for box in self.boxes.values():
       # Easy case: Rect is out-of-bounds
       for rect in box.rects.values():
-        if rect.x + rect.width > box.side_length or rect.y + rect.height > box.side_length:
+        if rect.x + rect.width > self.side_length or rect.y + rect.height > self.side_length:
           return False
 
       # Harder case: Rect may overlap with any other in this box
@@ -167,7 +169,6 @@ class Box:
   # Lookup from rect id -> rect obj
   rects: dict[int, Rectangle]
   id: int
-  side_length: int
   # Quick way to get free coordinates in this box
   free_coords: set[tuple[int, int]]
 
@@ -181,7 +182,6 @@ class Box:
     Initializes a new box with a number of rects
     '''
     self.id = b_id
-    self.side_length = side_length
     self.rects = dict()
     self.free_coords = set(product(range(side_length), range(side_length)))
     for rect in rects:
