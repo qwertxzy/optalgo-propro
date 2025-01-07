@@ -32,12 +32,12 @@ def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float)
     box_idx_in_row = floor(box_idx / boxes_per_row)
 
     box_top_left = (
-      box_idx_in_row * (box.side_length + BOX_SPACING) * scaling_factor,
-      box_row * (box.side_length + BOX_SPACING) * scaling_factor
+      box_idx_in_row * (solution.side_length + BOX_SPACING) * scaling_factor,
+      box_row * (solution.side_length + BOX_SPACING) * scaling_factor
     )
     box_bot_right = (
-      box_top_left[0] + box.side_length * scaling_factor,
-      box_top_left[1] + box.side_length * scaling_factor
+      box_top_left[0] + solution.side_length * scaling_factor,
+      box_top_left[1] + solution.side_length * scaling_factor
     )
     graph.draw_rectangle(top_left=box_top_left, bottom_right=box_bot_right, fill_color='gray')
 

@@ -19,6 +19,8 @@ class NeighborhoodDefinition(Enum):
       case NeighborhoodDefinition.PERMUTATION: return get_permutation_neighbors
       case NeighborhoodDefinition.GEOMETRIC: return get_geometric_neighbors
       case NeighborhoodDefinition.GEOMETRIC_OVERLAP: return get_geometric_neighbors
+      # TODO: for overlap, copy get_geometric_neighbors but get all,
+      # not just free coordinates from a box? Incident edges don't make sense there too
 
 def flatten(xss):
   '''Flatten nested list'''
@@ -43,9 +45,9 @@ def get_geometric_neighbors(solution: BoxSolution):
           for is_flipped in [True, False]:
 
             # Skip iteration if the rect would overflow to the right/bottom
-            if x + current_rect.width > current_box.side_length:
+            if x + current_rect.width > solution.side_length:
               continue
-            if y + current_rect.height > current_box.side_length:
+            if y + current_rect.height > solution.side_length:
               continue
 
 
@@ -66,10 +68,6 @@ def get_permutation_neighbors(solution: BoxSolution):
   Encodes the solution into a long list of rects that get placed from top left-to bottom-right
   in each box. Then computes permutations of this list and turns them back to solutions.
   '''
-  # Back up the box length from the first box (ugh)
-  box_length = solution.boxes[0].side_length
-
-  # Encode solution to list of rects
   encoded_rects = __encode_solution(solution)
 
   neighbors = []
@@ -78,7 +76,7 @@ def get_permutation_neighbors(solution: BoxSolution):
   for i in range(len(encoded_rects) - 1):
     encoded_neighbor = deepcopy(encoded_rects)
     encoded_neighbor[i], encoded_neighbor[i + 1] = encoded_neighbor[i + 1], encoded_neighbor[i]
-    neighbor = __decode_rect_list(encoded_neighbor, box_length)
+    neighbor = __decode_rect_list(encoded_neighbor, solution.side_length)
     neighbors.append(neighbor)
 
   # Also flip every possible rect
@@ -86,7 +84,7 @@ def get_permutation_neighbors(solution: BoxSolution):
     encoded_neighbor = deepcopy(encoded_rects)
     this_rect = encoded_neighbor[i]
     this_rect.width, this_rect.height = this_rect.height, this_rect.width
-    neighbor = __decode_rect_list(encoded_neighbor, box_length)
+    neighbor = __decode_rect_list(encoded_neighbor, solution.side_length)
     neighbors.append(neighbor)
 
   return neighbors
@@ -143,4 +141,4 @@ def __decode_rect_list(rects: list[Rectangle], box_length: int) -> BoxSolution:
     next_y = rect.height
 
   # Construct box solution from list of boxes
-  return BoxSolution(boxes)
+  return BoxSolution(box_length, boxes)
