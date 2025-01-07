@@ -4,7 +4,7 @@ Main application module of this project.
 
 from math import sqrt, floor
 from argparse import ArgumentParser
-import threading
+from threading import Thread, Event
 
 import FreeSimpleGUI as sg
 
@@ -66,20 +66,13 @@ def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float)
       )
       graph.draw_rectangle(coord_top_left, coord_bot_right, fill_color='blue')
 
-def tick_thread_wrapper(algo: OptimizationAlgorithm, window: sg.Window):
+def tick_thread_wrapper(algo: OptimizationAlgorithm, should_stop: Event, should_refresh: Event):
   '''Wrapper for executing the tick method in its own thread'''
-  # Disable the tick button
-  window["tick_btn"].update(disabled=True, text="Working...")
-
-  # Get number of ticks to run
-  # TODO: really needs a "run continuous" mode..
-  num_ticks = int(window["num_ticks"].get())
-  for _ in range(num_ticks):
+  while not should_stop.is_set():
+    # Tick algorithm once
     algo.tick()
-    window.write_event_value("TICK DONE", "")
-
-  # Enable button again
-  window["tick_btn"].update(disabled=False, text="Tick")
+    # Write an event back to the window to refresh the gui
+    should_refresh.set()
 
 # Main application part
 def show_app(config: RunConfiguration):
@@ -87,9 +80,7 @@ def show_app(config: RunConfiguration):
   # GUI initialization stuff
   layout = [
     [
-      sg.Button("Tick", k="tick_btn"),
-      sg.Text("Number of ticks"),
-      sg.Input("1", k="num_ticks"),
+      sg.Button("Start", k="tick_btn"),
       sg.Slider(range=(1, 10), default_value=2, resolution=0.5, key='scaling', enable_events=True, orientation='h'),
       sg.Listbox([e.name for e in NeighborhoodDefinition], select_mode='LISTBOX_SELECT_MODE_EXTENDED', enable_events=True, key='neighborhood', default_values=[config.neighborhood.name], size=(25, 3))
     ],
@@ -110,21 +101,45 @@ def show_app(config: RunConfiguration):
     h_range=config.rect_y_size
   )
   optimization_algorithm = config.algorithm(optimization_problem, config.neighborhood)
+  algo_thread = None
+  stop_event = Event()
+  refresh_event = Event()
 
   while True:
     draw_solution(graph, optimization_algorithm.get_current_solution(), scaling_factor=values['scaling'])
-    event, values = window.read()
 
+    # Refresh window if algorithm ticked in the background
+    if refresh_event.is_set():
+      print("refreshing")
+      window.refresh()
+      refresh_event.clear()
+
+    event, values = window.read(timeout=200)
     match event:
-      case "Exit" | sg.WIN_CLOSED:
-        # TODO: needs to kill the algorithm thread if its still running
+      case "Exit" | sg.WIN_CLOSED | sg.WIN_X_EVENT:
+        print("Exiting...")
+        if algo_thread and algo_thread.is_alive():
+          stop_event.set()
+          algo_thread.join()
         break
       case "tick_btn":
-        threading.Thread(target=tick_thread_wrapper, args=(optimization_algorithm, window), daemon=True).start()
+        if algo_thread and algo_thread.is_alive():
+          # Stop the current thread
+          stop_event.set()
+          algo_thread.join()
+          stop_event.clear()
+          window["tick_btn"].update(text="Start")
+        else:
+          # Start a new thread
+          algo_thread = Thread(
+              target=tick_thread_wrapper,
+              args=(optimization_algorithm, stop_event, refresh_event),
+              daemon=False
+          )
+          algo_thread.start()
+          window["tick_btn"].update(text="Stop")
       case "neighborhood":
-        optimization_algorithm.set_neighborhood_definition(NeighborhoodDefinition[values['neighborhood'][0]]) # Why is this a list
-      case "TICK DONE":
-        window.refresh()
+        optimization_algorithm.set_neighborhood_definition(NeighborhoodDefinition[values['neighborhood'][0]])
 
 # Entrypoint, will either get config as args or via gui dialogue
 if __name__ == "__main__":
