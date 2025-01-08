@@ -5,12 +5,14 @@ Main application module of this project.
 from math import sqrt, floor
 from argparse import ArgumentParser
 import threading
+from itertools import chain
 
 import FreeSimpleGUI as sg
 
 from problem import BoxSolution, BoxProblem
-from algorithm import OptimizationAlgorithm
+from algorithm import OptimizationAlgorithm, get_mode
 from neighborhoods import NeighborhoodDefinition
+from selections import SelectionSchema
 from config import RunConfiguration, show_config_picker
 
 # fine-tuning constants
@@ -89,12 +91,27 @@ def show_app(config: RunConfiguration):
     [
       sg.Button("Tick", k="tick_btn"),
       sg.Text("Number of ticks"),
-      sg.Input("1", k="num_ticks"),
+      sg.Input("10", k="num_ticks"),
       sg.Slider(range=(1, 10), default_value=2, resolution=0.5, key='scaling', enable_events=True, orientation='h'),
-      sg.Listbox([e.name for e in NeighborhoodDefinition], select_mode='LISTBOX_SELECT_MODE_EXTENDED', enable_events=True, key='neighborhood', default_values=[config.neighborhood.name], size=(25, 3))
+      sg.Listbox(
+        [e.name for e in type(config.mode)],
+        select_mode='LISTBOX_SELECT_MODE_EXTENDED',
+        enable_events=True,
+        key='mode',
+        default_values=[config.mode.name],
+        size=(25, 3)
+      )
     ],
     [
-      sg.Graph(background_color='white', canvas_size=(500, 500), graph_bottom_left=(-5, 105), graph_top_right=(105, -5), expand_x=True, expand_y=True, key='graph')
+      sg.Graph(
+        background_color='white',
+        canvas_size=(500, 500),
+        graph_bottom_left=(-5, 105),
+        graph_top_right=(105, -5),
+        expand_x=True,
+        expand_y=True,
+        key='graph'
+      )
     ]
   ]
   window = sg.Window("Optimierungsalgorithmen Programmierprojekt", layout, resizable=True)
@@ -109,7 +126,7 @@ def show_app(config: RunConfiguration):
     w_range=config.rect_x_size,
     h_range=config.rect_y_size
   )
-  optimization_algorithm = config.algorithm(optimization_problem, config.neighborhood)
+  optimization_algorithm = config.algorithm(optimization_problem, config.mode)
 
   while True:
     draw_solution(graph, optimization_algorithm.get_current_solution(), scaling_factor=values['scaling'])
@@ -121,8 +138,8 @@ def show_app(config: RunConfiguration):
         break
       case "tick_btn":
         threading.Thread(target=tick_thread_wrapper, args=(optimization_algorithm, window), daemon=True).start()
-      case "neighborhood":
-        optimization_algorithm.set_neighborhood_definition(NeighborhoodDefinition[values['neighborhood'][0]]) # Why is this a list
+      case "mode":
+        optimization_algorithm.set_neighborhood_definition(NeighborhoodDefinition[values['mode'][0]])
       case "TICK DONE":
         window.refresh()
 
@@ -130,12 +147,37 @@ def show_app(config: RunConfiguration):
 if __name__ == "__main__":
   # Start by parsing args
   parser = ArgumentParser()
-  parser.add_argument("--algorithm", type=str)
-  parser.add_argument("--neighborhood", type=str)
-  parser.add_argument("--rect-number", type=int)
-  parser.add_argument("--rect-x", type=str) # e.g. 5-12
-  parser.add_argument("--rect-y", type=str)
-  parser.add_argument("--box-length", type=int)
+  parser.add_argument(
+    "--algorithm",
+    type=str,
+    help=f"Possible values: {[a.__name__ for a in OptimizationAlgorithm.__subclasses__()]}"
+  )
+  parser.add_argument(
+    "--mode",
+    type=str,
+    # Not as cool & dynamic as the rest here, but eh..
+    help=f"Possible values: {[m.name for m in chain(NeighborhoodDefinition, SelectionSchema)]}"
+  )
+  parser.add_argument(
+    "--rect-number",
+    type=int,
+    help="Just a number"
+  )
+  parser.add_argument(
+    "--rect-x",
+    type=str,
+    help="Min-max range (e.g. 5-12)"
+  )
+  parser.add_argument(
+    "--rect-y",
+    type=str,
+    help="Min-max range (e.g. 5-12)"
+  )
+  parser.add_argument(
+    "--box-length",
+    type=int,
+    help="Just a number"
+  )
 
   args = parser.parse_args()
 
@@ -145,18 +187,26 @@ if __name__ == "__main__":
   try:
     # Get algorithm class from the name
     algo = next(filter(lambda a: a.__name__ == args.algorithm, OptimizationAlgorithm.__subclasses__()))
+    Mode = get_mode(algo)
     config = RunConfiguration(
       algorithm=algo,
-      neighborhood=NeighborhoodDefinition[args.neighborhood],
+      mode=Mode[args.mode],
       rect_number=args.rect_number,
       rect_x_size=range(*[int(i) for i in args.rect_x.split("-")]),
       rect_y_size=range(*[int(i) for i in args.rect_y.split("-")]),
       box_length=args.box_length
     )
+  #pylint: disable=W0718
   except Exception as e:
-    print("Could not get configuration from args, showing config picker..")
-    print(e)
-    config = show_config_picker()
+    print("Could not get complete configuration from args, showing config picker..")
+    config = show_config_picker(
+      algo_default=args.algorithm,
+      mode_default=args.mode,
+      rect_number_default=args.rect_number,
+      rect_x_default=range(*[int(i) for i in args.rect_x.split("-")]) if args.rect_x else None,
+      rect_y_default=range(*[int(i) for i in args.rect_y.split("-")]) if args.rect_y else None,
+      box_len_default=args.box_length
+    )
 
   # Launch main app with the config
   show_app(config)
