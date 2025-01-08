@@ -5,6 +5,7 @@ Main application module of this project.
 from math import sqrt, floor
 from argparse import ArgumentParser
 import threading
+import random
 from itertools import chain
 
 import FreeSimpleGUI as sg
@@ -178,8 +179,16 @@ if __name__ == "__main__":
     type=int,
     help="Just a number"
   )
+  parser.add_argument(
+    "--seed",
+    type=int,
+    help="RNG seed"
+  )
 
   args = parser.parse_args()
+
+  if args.seed:
+    random.seed(args.seed)
 
   # Try and construct run config from args,
   # and if it fails, show dialogue
