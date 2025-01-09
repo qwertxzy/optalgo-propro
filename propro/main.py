@@ -11,14 +11,14 @@ from itertools import chain
 import FreeSimpleGUI as sg
 
 from problem import BoxSolution, BoxProblem
-from algorithm import OptimizationAlgorithm, get_mode
+from algorithms.base import OptimizationAlgorithm
+from algorithms.utils import get_mode
+from algorithms.local_search import LocalSearch
+from algorithms.greedy_search import GreedySearch
 from neighborhoods import NeighborhoodDefinition
+from propro.constants import BOX_SPACING
 from selections import SelectionSchema
 from config import RunConfiguration, show_config_picker
-
-# fine-tuning constants
-# TODO: should probably be exposed via the GUI?
-BOX_SPACING = 2
 
 def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float):
   '''
