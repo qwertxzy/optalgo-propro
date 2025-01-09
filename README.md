@@ -10,7 +10,7 @@
 - [ ] Implement a testing environment
 
 ## Optimization Problem
-
+ 
 Given a finite sum of rectangles of integer sidelengths and an overall box length L:
 Find a placement of all the rectangles such that they **do not overlap**, are either **aligned on the x or y axis** and that they **fit inside a set of squares of length L**.
 Further, minimize the number of squares needed.
