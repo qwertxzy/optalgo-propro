@@ -10,7 +10,9 @@ import FreeSimpleGUI as sg
 
 from neighborhoods import NeighborhoodDefinition
 from selections import SelectionSchema
-from algorithm import OptimizationAlgorithm, get_mode, LocalSearch
+from algorithms.base import OptimizationAlgorithm
+from algorithms.utils import get_mode
+from algorithms.local_search import LocalSearch
 
 @dataclass
 class RunConfiguration:

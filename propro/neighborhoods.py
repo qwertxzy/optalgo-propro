@@ -6,6 +6,7 @@ from enum import Enum, auto
 from copy import deepcopy
 
 from problem import BoxSolution, Rectangle, Box
+from utils import flatten
 
 class NeighborhoodDefinition(Enum):
   '''Enumeration type for all different neighborhood definitions'''
@@ -21,10 +22,6 @@ class NeighborhoodDefinition(Enum):
       case NeighborhoodDefinition.GEOMETRIC_OVERLAP: return get_geometric_neighbors
       # TODO: for overlap, copy get_geometric_neighbors but get all,
       # not just free coordinates from a box? Incident edges don't make sense there too
-
-def flatten(xss):
-  '''Flatten nested list'''
-  return [x for xs in xss for x in xs]
 
 def get_geometric_neighbors(solution: BoxSolution):
   '''
