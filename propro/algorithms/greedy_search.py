@@ -1,7 +1,11 @@
-from algorithms.base import OptimizationAlgorithm
+'''
+Implementation of a greedy search algorithm
+'''
+
 from selections import SelectionSchema
 from problem import Rectangle
-import random
+
+from .base import OptimizationAlgorithm
 
 class GreedySearch(OptimizationAlgorithm):
   '''

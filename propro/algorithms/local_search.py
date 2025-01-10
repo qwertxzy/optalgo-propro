@@ -1,6 +1,12 @@
-from algorithms.base import OptimizationAlgorithm
-from neighborhoods import NeighborhoodDefinition
+'''
+Implementation of a local search algorithm
+'''
+
 import random
+
+from neighborhoods import NeighborhoodDefinition
+
+from .base import OptimizationAlgorithm
 
 class LocalSearch(OptimizationAlgorithm):
   '''

@@ -13,10 +13,9 @@ import FreeSimpleGUI as sg
 from problem import BoxSolution, BoxProblem
 from algorithms.base import OptimizationAlgorithm
 from algorithms.utils import get_mode
-from algorithms.local_search import LocalSearch
-from algorithms.greedy_search import GreedySearch
+
 from neighborhoods import NeighborhoodDefinition
-from propro.constants import BOX_SPACING
+from constants import BOX_SPACING
 from selections import SelectionSchema
 from config import RunConfiguration, show_config_picker
 

@@ -1,6 +1,10 @@
-from propro.algorithms.base import OptimizationAlgorithm
-from propro.neighborhoods import NeighborhoodDefinition
-from propro.selections import SelectionSchema
+'''
+Utilities for the optimization algorithms
+'''
+
+from algorithms.base import OptimizationAlgorithm
+from neighborhoods import NeighborhoodDefinition
+from selections import SelectionSchema
 
 
 def get_mode(algo: OptimizationAlgorithm):
