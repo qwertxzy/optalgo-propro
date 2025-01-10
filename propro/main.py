@@ -29,7 +29,7 @@ def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float)
 
   # Draw the boxes
   # NOTE: could use itertools.batched() if we switch to python 3.13
-  for box_idx, box in enumerate(solution.boxes.values()):
+  for box_idx, box in enumerate(list(solution.boxes.values())):
     box_row = box_idx % boxes_per_row
     box_idx_in_row = floor(box_idx / boxes_per_row)
 
