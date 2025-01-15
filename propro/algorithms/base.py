@@ -1,14 +1,10 @@
 '''
-Module contains a base definition as well as several
-different implementations of an optimization algorithm.
+Module contains a base definition of an optimization algorithm
 '''
 
 from abc import ABC, abstractmethod
-import random
 
 from problem import Problem, Solution
-from neighborhoods import NeighborhoodDefinition
-from selections import SelectionSchema
 
 class OptimizationAlgorithm(ABC):
   '''

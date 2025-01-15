@@ -13,10 +13,9 @@ import FreeSimpleGUI as sg
 from problem import BoxSolution, BoxProblem
 from algorithms.base import OptimizationAlgorithm
 from algorithms.utils import get_mode
-from algorithms.local_search import LocalSearch
-from algorithms.greedy_search import GreedySearch
+
 from neighborhoods import NeighborhoodDefinition
-from propro.constants import BOX_SPACING
+from constants import BOX_SPACING
 from selections import SelectionSchema
 from config import RunConfiguration, show_config_picker
 
@@ -30,7 +29,7 @@ def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float)
 
   # Draw the boxes
   # NOTE: could use itertools.batched() if we switch to python 3.13
-  for box_idx, box in enumerate(solution.boxes.values()):
+  for box_idx, box in enumerate(list(solution.boxes.values())):
     box_row = box_idx % boxes_per_row
     box_idx_in_row = floor(box_idx / boxes_per_row)
 

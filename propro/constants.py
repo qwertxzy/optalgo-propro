@@ -1,3 +1,4 @@
-# Constants module
-# TODO: should probably be exposed via the GUI?
+'''
+Fine-tuning constants
+'''
 BOX_SPACING = 2
