@@ -4,6 +4,8 @@ Runs benchmarks on the different algorithm varieties.
 
 import random
 import time
+from argparse import ArgumentParser
+from collections import deque
 
 from rich.table import Table
 from rich.console import Console
@@ -11,16 +13,49 @@ from rich.console import Console
 from algorithms import OptimizationAlgorithm, get_mode
 from problem import BoxProblem
 
-# TODO: get these from args
-num_rect = 10
-x_range = range(1, 10)
-y_range = range(1, 10)
-box_len = 10
-num_ticks = 2
-rng_seed = 1
+parser = ArgumentParser()
 
-# Fix seed for deterministic problem generation
-random.seed(rng_seed)
+parser.add_argument(
+  "--rect-number",
+  type=int,
+  help="Just a number",
+  default=200
+)
+parser.add_argument(
+  '--tick-number',
+  type=int,
+  help="Number of ticks to run the algorithms for",
+  default=400
+)
+parser.add_argument(
+  "--rect-x",
+  type=str,
+  help="Min-max range (e.g. 5-12)",
+  default="1-10"
+)
+parser.add_argument(
+  "--rect-y",
+  type=str,
+  help="Min-max range (e.g. 5-12)",
+  default="1-10"
+)
+parser.add_argument(
+  "--box-length",
+  type=int,
+  help="Just a number",
+  default=15
+)
+parser.add_argument(
+  "--seed",
+  type=int,
+  help="RNG seed"
+)
+
+args = parser.parse_args()
+
+# Fix seed for deterministic problem generation if specified
+if args.seed is not None:
+  random.seed(args.seed)
 
 # Keep track of results for all variations
 # (Algo / Mode / Time / Score)
@@ -33,17 +68,24 @@ for Algorithm in OptimizationAlgorithm.__subclasses__():
 
     # Initialize problem
     optimization_problem = BoxProblem(
-      box_length=box_len,
-      n_rect=num_rect,
-      w_range=x_range,
-      h_range=y_range
+      box_length=args.box_length,
+      n_rect=args.rect_number,
+      w_range=range(*[int(i) for i in args.rect_x.split("-")]),
+      h_range=range(*[int(i) for i in args.rect_x.split("-")])
     )
     optimization_algorithm = Algorithm(optimization_problem, Mode)
 
+    # Initialize circular buffer in case the algorithm converges before # ticks is reached
+    last_scores = deque(maxlen=5)
+
     # Run for num ticks
     start_time = time.perf_counter()
-    for i in range(num_ticks):
+    for i in range(args.tick_number):
       optimization_algorithm.tick()
+      last_scores.append(optimization_algorithm.get_current_solution().get_score())
+      # Break loop if algortihm has been stagnant for the last maxlen iterations
+      if last_scores.count(last_scores[0]) == last_scores.maxlen:
+        break
     stop_time = time.perf_counter()
 
     # Insert result into list
