@@ -7,7 +7,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import sys
 from random import choice
-from itertools import combinations, product
+from itertools import combinations
+
+from geometry.rectangle import Rectangle
+from geometry.box import Box
 
 class Problem(ABC):
   '''
@@ -58,7 +61,7 @@ class BoxSolution(Solution):
   Will get copied and constructed a lot, so should probably be as light-weight as possible.
   '''
   # Lookup box id -> box obj
-  boxes: dict[Box]
+  boxes: dict[int, Box]
   side_length: int
   currently_permissible_overlap: float
 
@@ -161,123 +164,3 @@ class BoxSolution(Solution):
         if rect_a.overlaps(rect_b, self.currently_permissible_overlap):
           return False
     return True
-
-class Box:
-  '''
-  One box of the box-rect problem.
-  '''
-  # Lookup from rect id -> rect obj
-  rects: dict[int, Rectangle]
-  id: int
-  # Quick way to get free coordinates in this box
-  free_coords: set[tuple[int, int]]
-
-  def __repr__(self):
-    s = f"{self.id}: "
-    s += ' '.join([str(r) for r in self.rects.values()])
-    return s
-
-  def __init__(self, b_id: int, side_length: int, *rects: Rectangle):
-    '''
-    Initializes a new box with a number of rects
-    '''
-    self.id = b_id
-    self.rects = dict()
-    self.free_coords = set(product(range(side_length), range(side_length)))
-    for rect in rects:
-      self.add_rect(rect)
-
-  def add_rect(self, rect: Rectangle):
-    '''Places a rectangle within this box.'''
-    # Add rect to internal dict
-    self.rects[rect.id] = rect
-    # Update free coordinate set
-    self.free_coords = self.free_coords - rect.get_all_coordinates()
-
-  def remove_rect(self, rect_id: int) -> Rectangle:
-    '''Removes a rectangle from this box.'''
-    # Set coordinates as free again
-    self.free_coords = self.free_coords | self.rects[rect_id].get_all_coordinates()
-    # Remove rect from internal dict
-    return self.rects.pop(rect_id)
-
-  def get_free_coordinates(self) -> set[tuple[int, int]]:
-    '''Returns all currently free x/y coordinates in this box.'''
-    # TODO: This will currently not work with the overlap neighborhood
-    #       But it leaves a nice place for adjusting the search space
-    # IDEA: only explore free coordinates next to other boxes or on the box edge
-    return self.free_coords
-
-class Rectangle:
-  '''
-  One rectangle to be fitted into boxes in the box-rect problem.
-  '''
-  x: int
-  y: int
-  width: int
-  height: int
-  id: int
-
-  def __repr__(self):
-    return f"[{self.id}: ({self.x}+{self.width}/{self.y}+{self.height})]"
-
-  def __eq__(self, value):
-    '''Override equality with id check'''
-    if not isinstance(value, Rectangle):
-      return False
-    return self.id == value.id
-
-  def __init__(self, x: int, y: int, w: int, h: int, i: int):
-    self.x = x
-    self.y = y
-    self.width = w
-    self.height = h
-    self.id = i
-
-  def get_area(self) -> int:
-    '''Compute area of the rectangle'''
-    return self.width * self.height
-
-  def get_all_coordinates(self) -> set[tuple[int, int]]:
-    '''Returns all possible points in this rect.'''
-    return set(product(
-      range(self.x, self.x + self.width),
-      range(self.y, self.y + self.height)
-    ))
-
-  def contains(self, x: int, y:int) -> bool:
-    '''Checks whether a given x/y coordinate lies within this rect'''
-    return all([
-      self.x <= x,
-      self.x + self.width > x,
-      self.y <= y,
-      self.y + self.height > y
-    ])
-
-  def overlaps(self, other: Rectangle, permissible_overlap: float = 0.0) -> bool:
-    '''Checks whether two rectangles overlap, with a permissible amount.'''
-    # Check if these two are the same
-    if self.id == other.id:
-      return False
-
-    # If permissible overlap is zero, do strict boundary checks only
-    if permissible_overlap == 0.0:
-      checks = [
-        (self.x < other.x + other.width),
-        (self.x + self.width > other.x),
-        (self.y < other.y + other.height),
-        (self.y + self.height > other.y)
-      ]
-      return all(checks)
-
-    # If it's not, we need to compute the overlap area of the two rects
-    # and compare it against the permissible value
-    overlap_x1 = max(self.x, other.x)
-    overlap_y1 = max(self.y, other.y)
-    overlap_x2 = min(self.x + self.width, other.x + other.width)
-    overlap_y2 = min(self.y + self.height, other.y + other.height)
-
-    overlap_width = abs(overlap_x1 - overlap_x2)
-    overlap_height = abs(overlap_y1 - overlap_y2)
-    overlap_area = overlap_width * overlap_height
-    return (overlap_area / (self.get_area() + other.get_area())) > permissible_overlap

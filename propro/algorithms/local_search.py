@@ -3,8 +3,11 @@ Implementation of a local search algorithm
 '''
 
 import random
+from typing import Type
 
-from neighborhoods import NeighborhoodDefinition
+from neighborhoods.neighborhood import Neighborhood
+from neighborhoods.geometric import Geometric
+from neighborhoods.geometric_overlap import GeometricOverlap
 
 from .base import OptimizationAlgorithm
 
@@ -12,29 +15,27 @@ class LocalSearch(OptimizationAlgorithm):
   '''
   Implements a local search through the solution space
   '''
+  # strategy: Type[Neighborhood]
 
-  neighborhood_definition: NeighborhoodDefinition
-
-  def __init__(self, problem, neighborhood_definition: NeighborhoodDefinition = NeighborhoodDefinition.GEOMETRIC):
+  def __init__(self, problem, neighborhood_definition: Type[Neighborhood] = Geometric):
     super().__init__(problem)
-    self.neighborhood_definition = neighborhood_definition
+    LocalSearch.strategy = neighborhood_definition
     # TODO: just set permissible overlap here, should be set by some kind of schedule?
     #       can only be tested once neighborhood exploration speeds up..
-    if neighborhood_definition == NeighborhoodDefinition.GEOMETRIC_OVERLAP:
+    if neighborhood_definition == GeometricOverlap:
       self.problem.currently_permissible_overlap = 0.2
 
-  def set_neighborhood_definition(self, neighborhood_definition: NeighborhoodDefinition):
+  def set_strategy(self, neighborhood_definition: Neighborhood):
     '''Sets the neighborhood definition.'''
     print(f"Set the neighborhood definition to {neighborhood_definition}")
-    self.neighborhood_definition = neighborhood_definition
+    LocalSearch.strategy = neighborhood_definition
     # See todo in __init__
-    if neighborhood_definition == NeighborhoodDefinition.GEOMETRIC_OVERLAP:
+    if LocalSearch.strategy == GeometricOverlap:
       self.problem.currently_permissible_overlap = 0.2
 
   def tick(self):
     # Get all possible neighbors
-    get_neighbors = self.neighborhood_definition.get_neighborhood_method()
-    neighbors = get_neighbors(self.get_current_solution())
+    neighbors = LocalSearch.strategy.get_neighbors(self.get_current_solution())
 
     if len(neighbors) == 0:
       print("Algorithm stuck! No neighbors could be found.")

@@ -2,9 +2,10 @@
 Implementation of a greedy search algorithm
 '''
 
-from selections import SelectionSchema
-from problem import Rectangle
+from typing import Type
 
+from selection_schemas.selections import SelectionSchema
+from problem import Rectangle
 from .base import OptimizationAlgorithm
 
 class GreedySearch(OptimizationAlgorithm):
@@ -14,12 +15,12 @@ class GreedySearch(OptimizationAlgorithm):
 
   # TODO: is this generic enough of an interface? How to generify this?
   unplaced_rects: list[Rectangle]
-  selection_schema: SelectionSchema
+  strategy: Type[SelectionSchema]
 
   # Override constructor to remove all initially placed rects
-  def __init__(self, problem, selection_schema):
+  def __init__(self, problem, selection_schema: Type[SelectionSchema]):
     self.unplaced_rects = []
-    self.selection_schema = selection_schema
+    GreedySearch.strategy: SelectionSchema = selection_schema
 
     for box in problem.current_solution.boxes.values():
       for rect_id in list(box.rects.keys()):
@@ -39,7 +40,7 @@ class GreedySearch(OptimizationAlgorithm):
     if len(self.unplaced_rects) == 0:
       return
 
-    selection_method = self.selection_schema.get_selection_schema()
+    #selection_method = GreedySearch.strategy.get_selection_schema()
     # Pop a rect from the list and get the best move
     next_rect = self.unplaced_rects.pop()
-    self.problem.current_solution = selection_method(self.problem.current_solution, next_rect)
+    self.problem.current_solution = GreedySearch.strategy.select(self.problem.current_solution, next_rect)

@@ -8,19 +8,23 @@ from typing import Optional
 
 import FreeSimpleGUI as sg
 
-from neighborhoods import NeighborhoodDefinition
-from selections import SelectionSchema
+from neighborhoods.neighborhood import Neighborhood
+from selection_schemas.selections import SelectionSchema
 from algorithms.base import OptimizationAlgorithm
-from algorithms.utils import get_mode
+from algorithms.utils import get_mode, get_mode_superclass, get_modes
 from algorithms.local_search import LocalSearch
+from algorithms.greedy_search import GreedySearch
 
 @dataclass
 class RunConfiguration:
-  '''Encapsulates all nessecary information to run the application'''
+  '''Encapsulates all nessecary information to run the application. 
+  This information stays the same during the run, to be able to restart the same configuration.'''
 
   # Solver specific
   algorithm: OptimizationAlgorithm
-  mode: NeighborhoodDefinition | SelectionSchema
+  Mode: Neighborhood | SelectionSchema
+  available_modes: list[Neighborhood | SelectionSchema]
+  selected_mode: Neighborhood | SelectionSchema
 
   # Problem specific
   rect_number: int
@@ -40,7 +44,7 @@ def show_config_picker(
   '''Shows a dialogue for the user to pick config values. Accepts optional default values'''
   # Try and parse default mode for correct pre-selection
   algo = next(filter(lambda a: a.__name__ == algo_default, OptimizationAlgorithm.__subclasses__()), LocalSearch)
-  Mode = get_mode(algo)
+  Mode = get_mode_superclass(algo)
 
   # Frame for the Solver specific options
   solver_layout = [
@@ -54,9 +58,9 @@ def show_config_picker(
                  no_scrollbar=True,
                  enable_events=True
                  ),
-      sg.Listbox([e.name for e in Mode],
+      sg.Listbox([e.__name__ for e in Mode.__subclasses__()],
                  # Just the first that python comes up with
-                 default_values=mode_default if mode_default else [next(Mode.__iter__()).name],
+                 default_values="Geometric",   # mode_default if mode_default else [Mode.__subclasses__()[0].name],
                  k="mode",
                  select_mode="LISTBOX_SELECT_MODE_SINGLE",
                  size=(25, 5),
@@ -105,20 +109,26 @@ def show_config_picker(
         return None
       case "algo":
         # If algorithm selection changes, update the neighborhood/selection box accordingly
+        #window["mode"].update([m.__name__ for m in get_modes(values["algo"])])
         match values["algo"][0]:
           case "LocalSearch":
-            window["mode"].update(values=[e.name for e in NeighborhoodDefinition])
+            window["mode"].update( [m.__name__ for m in get_modes(LocalSearch)])
           case "GreedySearch":
-            window["mode"].update(values=[e.name for e in SelectionSchema])
+            window["mode"].update( [m.__name__ for m in get_modes(GreedySearch)])          
       case "Ok":
         # Get algorithm class from the name
         algo_name = values["algo"][0]
+        mode_name = values["mode"][0]
         algo = next(filter(lambda a: a.__name__ == algo_name, OptimizationAlgorithm.__subclasses__()))
-        Mode = get_mode(algo)
+        Mode = get_mode_superclass(algo)
+        available_modes = get_modes(algo)
+        mode = get_mode(algo, mode_name)
 
         config = RunConfiguration(
           algo,
-          Mode[values["mode"][0]],
+          Mode.__name__,
+          available_modes,
+          mode,
           int(values["n_rect"]),
           range(int(values["x_min"]), int(values["x_max"])),
           range(int(values["y_min"]), int(values["y_max"])),

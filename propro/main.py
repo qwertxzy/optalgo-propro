@@ -14,9 +14,9 @@ from problem import BoxSolution, BoxProblem
 from algorithms.base import OptimizationAlgorithm
 from algorithms.utils import get_mode
 
-from neighborhoods import NeighborhoodDefinition
+from neighborhoods.neighborhood import Neighborhood
 from constants import BOX_SPACING
-from selections import SelectionSchema
+from selection_schemas.selections import SelectionSchema
 from config import RunConfiguration, show_config_picker
 
 def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float):
@@ -94,11 +94,11 @@ def show_app(config: RunConfiguration):
       sg.Input("10", k="num_ticks"),
       sg.Slider(range=(1, 10), default_value=2, resolution=0.5, key='scaling', enable_events=True, orientation='h'),
       sg.Listbox(
-        [e.name for e in type(config.mode)],
+        [e.__name__ for e in config.available_modes],
         select_mode='LISTBOX_SELECT_MODE_EXTENDED',
         enable_events=True,
         key='mode',
-        default_values=[config.mode.name],
+        default_values=[config.selected_mode.__name__],
         size=(25, 3)
       )
     ],
@@ -120,13 +120,13 @@ def show_app(config: RunConfiguration):
   values = {'scaling': 2} # Hacky way to keep draw_solution above window.read
 
   # OptAlgo stuff
-  optimization_problem = BoxProblem(
+  optimization_problem: BoxProblem = BoxProblem(
     box_length=config.box_length,
     n_rect=config.rect_number,
     w_range=config.rect_x_size,
     h_range=config.rect_y_size
   )
-  optimization_algorithm = config.algorithm(optimization_problem, config.mode)
+  optimization_algorithm: OptimizationAlgorithm = config.algorithm(optimization_problem, config.selected_mode)
 
   while True:
     draw_solution(graph, optimization_algorithm.get_current_solution(), scaling_factor=values['scaling'])
@@ -139,7 +139,9 @@ def show_app(config: RunConfiguration):
       case "tick_btn":
         threading.Thread(target=tick_thread_wrapper, args=(optimization_algorithm, window), daemon=True).start()
       case "mode":
-        optimization_algorithm.set_neighborhood_definition(NeighborhoodDefinition[values['mode'][0]])
+        #optimization_algorithm.set_neighborhood_definition(NeighborhoodDefinition[values['mode'][0]])
+        optimization_algorithm.strategy = get_mode(config.algorithm, values['mode'][0])
+        optimization_algorithm.set_strategy(optimization_algorithm.strategy)
       case "TICK DONE":
         window.refresh()
 
@@ -156,7 +158,7 @@ if __name__ == "__main__":
     "--mode",
     type=str,
     # Not as cool & dynamic as the rest here, but eh..
-    help=f"Possible values: {[m.name for m in chain(NeighborhoodDefinition, SelectionSchema)]}"
+    help=f"Possible values: {[m.__name__ for m in Neighborhood.__subclasses__()]}" #TODO also print selections
   )
   parser.add_argument(
     "--rect-number",
@@ -195,7 +197,7 @@ if __name__ == "__main__":
   try:
     # Get algorithm class from the name
     algo = next(filter(lambda a: a.__name__ == args.algorithm, OptimizationAlgorithm.__subclasses__()))
-    Mode = get_mode(algo)
+    Mode = next(filter(lambda m: m.__name__ == args.mode, Neighborhood.__subclasses__()))
     config = RunConfiguration(
       algorithm=algo,
       mode=Mode[args.mode],
