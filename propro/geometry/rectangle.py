@@ -22,13 +22,13 @@ class Rectangle:
   '''the minimum of width and height'''
 
   # could include overlapping properties here
-  overlapArea: int = 0
-  '''the area of overlap with other rectangles'''
-  overlapRatio: float = 0.0
-  '''the ratio of overlap with other rectangles'''
-  overlaps: dict[int, 'Rectangle'] = dict()
-  '''The rectangles this regtangle overlaps with. 
-  Maps rectangle id to rectangle object'''
+  # overlapArea: int = 0
+  # '''the area of overlap with other rectangles'''
+  # overlapRatio: float = 0.0
+  # '''the ratio of overlap with other rectangles'''
+  # overlaps: dict[int, 'Rectangle'] = dict()
+  # '''The rectangles this regtangle overlaps with. 
+  # Maps rectangle id to rectangle object'''
 
   adjacents: dict[int, 'Rectangle'] = dict()
   '''The rectangles this rectangle is adjacent to. No overlap, but touching.
@@ -53,6 +53,12 @@ class Rectangle:
     if not isinstance(value, Rectangle):
       return False
     return self.id == value.id
+  
+  def copy(self) -> 'Rectangle':
+    '''Create a deep copy of this rectangle'''
+    return Rectangle(self.x, self.y, self.width, self.height, self.id)
+  
+  
 
 
 
@@ -61,20 +67,22 @@ class Rectangle:
     return self.width * self.height
 
   def get_all_coordinates(self) -> set[tuple[int, int]]:
-    '''Returns all possible points in this rect.'''
+    '''Returns all possible points of this rect.'''
     return set(product(
       range(self.x, self.x + self.width),
       range(self.y, self.y + self.height)
     ))
 
   def contains(self, x: int, y:int) -> bool:
-    '''Checks whether a given x/y coordinate lies within this rect'''
-    return all([
-      self.x <= x,
+    '''Checks whether a given x/y coordinate lies within this rect.
+    !! Excluding the edges.'''
+    checks = [
+      self.x < x,
       self.x + self.width > x,
-      self.y <= y,
+      self.y < y,
       self.y + self.height > y
-    ])
+    ]
+    return all(checks)
 
   def overlaps(self, other: 'Rectangle', permissible_overlap: float = 0.0) -> bool:
     '''Checks whether two rectangles overlap, with a permissible amount.'''
@@ -84,13 +92,24 @@ class Rectangle:
 
     # If permissible overlap is zero, do strict boundary checks only
     if permissible_overlap == 0.0:
-      checks = [
-        (self.x < other.x + other.width),
-        (self.x + self.width > other.x),
-        (self.y < other.y + other.height),
-        (self.y + self.height > other.y)
-      ]
-      return all(checks)
+      # checks = [
+      #   (self.x < other.x + other.width),
+      #   (self.x + self.width > other.x),
+      #   (self.y < other.y + other.height),
+      #   (self.y + self.height > other.y)
+      # ]
+      # return all(checks)
+      #####This does not seem to work either
+      # for x1 in range(self.x, self.x + self.width+1):
+      #   for y1 in range(self.y, self.y + self.height+1):
+      #     if other.contains(x1, y1):
+      #       return True
+      # Calculate the intersection area
+      x_overlap = max(0, min(self.x + self.width, other.x + other.width) - max(self.x, other.x))
+      y_overlap = max(0, min(self.y + self.height, other.y + other.height) - max(self.y, other.y))
+      intersection_area = x_overlap * y_overlap
+      return intersection_area > 0
+        
 
     # If it's not, we need to compute the overlap area of the two rects
     # and compare it against the permissible value
@@ -104,6 +123,47 @@ class Rectangle:
     overlap_area = overlap_width * overlap_height
     return (overlap_area / (self.get_area() + other.get_area())) > permissible_overlap
 
+
+  def get_edges(self) -> set[tuple[int, int]]:
+    '''Returns a set of the edge coordinates of the rectangle'''
+    ret: set[tuple[int, int]] = set()
+    ret = ret.union(self.get_edge("top"))
+    ret = ret.union(self.get_edge("bottom"))
+    ret = ret.union(self.get_edge("left"))
+    ret = ret.union(self.get_edge("right"))
+    return ret
+  
+  def get_placeable_edges(self) -> set[tuple[int, int]]:
+    '''Returns a set of the edge coordinates of the rectangle for right and bottom edges'''
+    ret: set[tuple[int, int]] = set()
+    ret = ret.union(self.get_edge("bottom"))
+    ret = ret.union(self.get_edge("right"))
+    return ret
+
+  def get_edge(self, dir: str) -> set[tuple[int, int]]:
+    '''Returns a set of the edge coordinates of the rectangle for a certain direction.
+    dir: "top", "bottom", "left", "right"'''
+    if dir == "top":
+      return set(product(
+        range(self.x, self.x + self.width+1),
+        [self.y]
+      ))
+    if dir == "bottom":
+      return set(product(
+        range(self.x, self.x + self.width+1),
+        [self.y + self.height]
+      ))
+    if dir == "left":
+      return set(product(
+        [self.x],
+        range(self.y, self.y + self.height+1)
+      ))
+    if dir == "right":
+      return set(product(
+        [self.x + self.width],
+        range(self.y, self.y + self.height+1)
+      ))
+    raise ValueError("Invalid direction: " + dir)
 
 
   def add_adjacent(self, other: 'Rectangle') -> bool:
@@ -152,10 +212,9 @@ class Rectangle:
     self.overlaps.pop(other.id)
     self.update_overlap()
 
-  def rotate(self):
-    '''Rotate the rectangle by 90 degrees'''
+  def flip(self):
+    '''Flip the rectangle'''
     self.width, self.height = self.height, self.width
-    # TODO: might need to adjust overlap and adjacency information here
 
   def move(self, direction : str, distance: int):
     '''move the rectangle in a certain direction for a certain distance. 

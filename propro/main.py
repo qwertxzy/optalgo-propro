@@ -7,7 +7,6 @@ from argparse import ArgumentParser
 import threading
 import random
 from itertools import chain
-
 import FreeSimpleGUI as sg
 
 from problem import BoxSolution, BoxProblem
@@ -44,7 +43,7 @@ def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float)
     graph.draw_rectangle(top_left=box_top_left, bottom_right=box_bot_right, fill_color='gray')
 
     # Also paint the box's rectangles
-    for rect in box.rects.values():
+    for rect in list(box.rects.values()):
       rect_top_left = (
         box_top_left[0] + rect.x * scaling_factor,
         box_top_left[1] + rect.y * scaling_factor
@@ -54,17 +53,19 @@ def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float)
         rect_top_left[1] + rect.height * scaling_factor
       )
       graph.draw_rectangle(rect_top_left, rect_bot_right, fill_color='red')
+      #graph.draw_rectangle(rect_top_left, rect_bot_right)
 
     # Debug or leave this in? Maybe as an option
     # Paint the box's free coordinate search space
-    for (x, y) in box.get_free_coordinates():
+    #for (x, y) in box.get_free_coordinates():
+    for (x, y) in list(box.get_adjacent_coordinates()):
       coord_top_left = (
-        box_top_left[0] + (x + 0.25) * scaling_factor,
-        box_top_left[1] + (y + 0.25) * scaling_factor
+        box_top_left[0] + (x - 0.1) * scaling_factor,
+        box_top_left[1] + (y - 0.1) * scaling_factor
       )
       coord_bot_right = (
-        box_top_left[0] + (x + 0.75) * scaling_factor,
-        box_top_left[1] + (y + 0.75) * scaling_factor
+        box_top_left[0] + (x + 0.1) * scaling_factor,
+        box_top_left[1] + (y + 0.1) * scaling_factor
       )
       graph.draw_rectangle(coord_top_left, coord_bot_right, fill_color='blue')
 

@@ -1,16 +1,22 @@
 
 from abc import ABC, abstractmethod
+from typing import Type
 
-from problem import BoxSolution, Rectangle, Box
+from problem import BoxSolution, Rectangle, Box, Score, Move, ScoredMove
 from utils import flatten
+
+
+
 
 class Neighborhood(ABC):
 
   neighbors = []
 
+  max_neighbors = 100
+
   @classmethod
   @abstractmethod
-  def get_neighbors(cls, solution: BoxSolution) -> list:
+  def get_neighbors(cls, solution: BoxSolution) -> list[ScoredMove]:
     '''
     Calculates neighbors of a given start solution.
     '''
