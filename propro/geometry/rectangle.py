@@ -92,14 +92,14 @@ class Rectangle:
 
     # If permissible overlap is zero, do strict boundary checks only
     if permissible_overlap == 0.0:
-      # checks = [
+      # checks = [  # This misses some edge cases i.e. when one rect is inside the other
       #   (self.x < other.x + other.width),
       #   (self.x + self.width > other.x),
       #   (self.y < other.y + other.height),
       #   (self.y + self.height > other.y)
       # ]
       # return all(checks)
-      #####This does not seem to work either
+      ####This does not seem to work either
       # for x1 in range(self.x, self.x + self.width+1):
       #   for y1 in range(self.y, self.y + self.height+1):
       #     if other.contains(x1, y1):

@@ -29,9 +29,14 @@ class Score:
     return f"Score(box_count={self.box_count}, incident_edges={self.incident_edges})"
   
   def __lt__(self, other: Score):
-    #TODO: check if this is correct
     #TODO: tweak this to make it more efficient
-    return self.box_count < other.box_count or self.incident_edges < other.incident_edges
+    return self.box_count < other.box_count or self.incident_edges > other.incident_edges
+  
+  def __eq__(self, other: Score):
+    return self.box_count == other.box_count and self.incident_edges == other.incident_edges
+  
+  def __le__(self, other: Score):
+    return self < other or self == other
   
 class Move:
   '''
@@ -195,9 +200,6 @@ class BoxSolution(Solution):
     for other_rect in to_box.rects.values():
       if rect.overlaps(other_rect, 0.00):
         return False
-      if other_rect.overlaps(rect, 0.00):
-        return False
-      
     return True
   
   def get_potential_score(self, move: Move) -> Score:
@@ -255,13 +257,16 @@ class BoxSolution(Solution):
   def get_score(self) -> Score:
     # Very large number
     if not self.is_valid():
-      return Score(sys.maxsize, sys.maxsize)
+      return Score(sys.maxsize, sys.minsize)
 
     # Count non-empty boxes and incident edges between rects as scoring criteria
     box_counts =  len(self.boxes)
-    incident_edges = -self.compute_incident_edges() # Minus because we are trying to minimize
+    #incident_edges = self.compute_incident_edges() # In the score calculation we compute a maximization for incident edges.
+    incident_edges = self.compute_incident_edge_coordinates()
     return Score(box_counts, incident_edges)
 
+
+## DEPRECATED, now in box.py
   def compute_incident_edges(self) -> int:
     '''
     Computes the number of unit lengths of edges

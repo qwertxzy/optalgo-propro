@@ -13,6 +13,7 @@ class Geometric(Neighborhood):
     '''
     print("Calculating Geometric neighborhoods")
     neighbors = []
+    current_score = solution.get_score()
 
     # Iterate over all rectangles in all boxes
     for current_box in sorted(solution.boxes.values(), key=lambda box: len(box.rects)):
@@ -28,6 +29,10 @@ class Geometric(Neighborhood):
               # no move
               if current_box.id == possible_box.id and current_rect.x == x and current_rect.y == y and is_flipped == False:
                 continue
+
+              # no flip if the rect is square
+              if current_rect.width == current_rect.height and is_flipped == True:
+                continue
               
 
               move = Move(current_rect.id, current_box.id, possible_box.id, x, y, is_flipped)
@@ -39,17 +44,26 @@ class Geometric(Neighborhood):
               # calculate the score of the new solution
               score = solution.get_potential_score(move)
 
+              # if the score is worse or equal, skip this move. This evoids bouncing back and forth 
+              if current_score <= score:
+                continue
+
               # add it to the neighbors
               neighbors.append(ScoredMove(move, score))
+
+              # Once a solution found that removes one box entirely, early return
+              if current_score.box_count > score.box_count:
+                print(f"Early returned with {len(neighbors)} neighbors. Removed one Box.")
+                return neighbors
 
               # Once a neighbor is found that reduces the main scoring criteria, early return?
               # # Dramatically speeds up early convergence
               # if score.box_count < solution.get_score().box_count:
               #    print(f"Early returned with {len(neighbors)} neighbors")
               #    return neighbors
-              # if len(neighbors) > cls.max_neighbors:
-              #   print(f"Early returned with {len(neighbors)} neighbors")
-              #   return neighbors
+              if len(neighbors) > cls.max_neighbors:
+                print(f"Early returned with {len(neighbors)} neighbors")
+                return neighbors
     print(f"Explored all {len(neighbors)} neighbors")
     return neighbors
         
