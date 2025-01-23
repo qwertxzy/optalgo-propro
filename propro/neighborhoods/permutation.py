@@ -1,11 +1,13 @@
-from neighborhoods.neighborhood import Neighborhood
-from problem import BoxSolution
 from copy import deepcopy
 
+from neighborhoods.neighborhood import Neighborhood, ScoredMove
+from problem import BoxSolution
+
 class Permutation(Neighborhood):
-        
+  '''Implementation for a permutation-based neighborhood'''
+
   @classmethod
-  def get_neighbors(cls, solution: BoxSolution) -> list:
+  def get_neighbors(cls, solution: BoxSolution) -> list[ScoredMove]:
     '''
     Encodes the solution into a long list of rects that get placed from top left-to bottom-right
     in each box. Then computes permutations of this list and turns them back to solutions.

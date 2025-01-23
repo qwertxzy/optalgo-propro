@@ -1,9 +1,9 @@
-from .neighborhood import Neighborhood, Move, ScoredMove
+from problem import Move, ScoredMove
 from problem import BoxSolution
-
-from copy import deepcopy
+from .neighborhood import Neighborhood
 
 class Geometric(Neighborhood):
+  '''Implementation for a geometry-based neighborhood'''
 
   @classmethod
   def get_neighbors(cls, solution: BoxSolution) -> list[ScoredMove]:
@@ -27,13 +27,13 @@ class Geometric(Neighborhood):
             for is_flipped in [False, True]:
 
               # no move
-              if current_box.id == possible_box.id and current_rect.x == x and current_rect.y == y and is_flipped == False:
+              if current_box.id == possible_box.id and current_rect.x == x and current_rect.y == y and not is_flipped:
                 continue
 
               # no flip if the rect is square
-              if current_rect.width == current_rect.height and is_flipped == True:
+              if current_rect.width == current_rect.height and is_flipped:
                 continue
-              
+
 
               move = Move(current_rect.id, current_box.id, possible_box.id, x, y, is_flipped)
 
@@ -44,7 +44,7 @@ class Geometric(Neighborhood):
               # calculate the score of the new solution
               score = solution.get_potential_score(move)
 
-              # if the score is worse or equal, skip this move. This evoids bouncing back and forth 
+              # if the score is worse or equal, skip this move. This evoids bouncing back and forth
               if current_score <= score:
                 continue
 
@@ -61,11 +61,8 @@ class Geometric(Neighborhood):
               # if score.box_count < solution.get_score().box_count:
               #    print(f"Early returned with {len(neighbors)} neighbors")
               #    return neighbors
-              if len(neighbors) > cls.max_neighbors:
+              if len(neighbors) > cls.MAX_NEIGHBORS:
                 print(f"Early returned with {len(neighbors)} neighbors")
                 return neighbors
     print(f"Explored all {len(neighbors)} neighbors")
     return neighbors
-        
-    
-    

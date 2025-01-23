@@ -1,18 +1,17 @@
-
+'''
+Contains a basic neighborhood definition that must be inherited from
+'''
 from abc import ABC, abstractmethod
-from typing import Type
 
-from problem import BoxSolution, Rectangle, Box, Score, Move, ScoredMove
+from problem import BoxSolution, Rectangle, Box, ScoredMove
 from utils import flatten
 
-
-
-
 class Neighborhood(ABC):
+  '''Abstract neighborhood base class'''
 
   neighbors = []
 
-  max_neighbors = 100
+  MAX_NEIGHBORS = 100
 
   @classmethod
   @abstractmethod
@@ -27,7 +26,7 @@ class Neighborhood(ABC):
     Turns the solution into a list of boxes
     '''
     return flatten([b.rects.values() for b in solution.boxes.values()])
-  
+
   @classmethod
   def _decode_rect_list(cls, rects: list[Rectangle], box_length: int) -> BoxSolution:
     '''

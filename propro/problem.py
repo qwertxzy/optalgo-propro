@@ -8,7 +8,6 @@ from abc import ABC, abstractmethod
 import sys
 from random import choice
 from itertools import combinations
-from typing import Type
 
 from geometry.rectangle import Rectangle
 from geometry.box import Box
@@ -27,17 +26,17 @@ class Score:
 
   def __repr__(self):
     return f"Score(box_count={self.box_count}, incident_edges={self.incident_edges})"
-  
+
   def __lt__(self, other: Score):
     #TODO: tweak this to make it more efficient
     return self.box_count < other.box_count or self.incident_edges > other.incident_edges
-  
+
   def __eq__(self, other: Score):
     return self.box_count == other.box_count and self.incident_edges == other.incident_edges
-  
+
   def __le__(self, other: Score):
     return self < other or self == other
-  
+
 class Move:
   '''
   Represents a move of a rectangle from one box to another.
@@ -55,7 +54,7 @@ class Move:
 
   def __repr__(self):
     return f"Move(rect_id={self.rect_id}, from_box_id={self.from_box_id}, to_box_id={self.to_box_id}, new_x={self.new_x}, new_y={self.new_y}, flip={self.flip})"
-  
+
 class ScoredMove:
   '''
   Represents a move with its potential score.
@@ -144,7 +143,7 @@ class BoxSolution(Solution):
     s += f"Allowed Overlap: {self.currently_permissible_overlap}\n"
     s += '\n'.join([str(box) for box in self.boxes.values()])
     return s
-  
+
   def apply_move(self, move: Move):
     '''
     Applies a move to the current solution
@@ -174,9 +173,9 @@ class BoxSolution(Solution):
       self.boxes.pop(move.from_box_id)
       print(f"Removed box {move.from_box_id}")
       print(f"Now have {len(self.boxes)} boxes")
-    
 
-  
+
+
   def is_valid_move(self, move: Move) -> bool:
     '''
     Checks whether a move of a rectangle to a new box and coordinates is valid
@@ -186,7 +185,8 @@ class BoxSolution(Solution):
     to_box = self.boxes[move.to_box_id]
     rect = from_box.rects[move.rect_id].copy()
 
-    if move.flip: rect.flip()
+    if move.flip:
+      rect.flip()
     rect.x = move.new_x
     rect.y = move.new_y
 
@@ -195,13 +195,13 @@ class BoxSolution(Solution):
       return False
     if move.new_y + rect.height > self.side_length:
       return False
-    
+
     # Check if the rect would overlap with any other rect in the new box
     for other_rect in to_box.rects.values():
       if rect.overlaps(other_rect, 0.00):
         return False
     return True
-  
+
   def get_potential_score(self, move: Move) -> Score:
     '''
     Calculates the potential score of the solution after a given move.
@@ -219,16 +219,17 @@ class BoxSolution(Solution):
     box_count = len(self.boxes)
     # If the old box is now empty, we will have one box less
     if len(from_box.rects) == 1 and (move.from_box_id != move.to_box_id):
-      box_count -= 1 
-      
+      box_count -= 1
+
 
     # first do the move operation, later redo.
     from_box.remove_rect(move.rect_id)
-    if move.flip: rect.flip()
+    if move.flip:
+      rect.flip()
     rect.x = move.new_x
     rect.y = move.new_y
     to_box.add_rect(rect)
-    
+
     #count incident edges
     incident_edges = self.compute_incident_edge_coordinates()
 
@@ -236,14 +237,11 @@ class BoxSolution(Solution):
     to_box.remove_rect(move.rect_id)
     rect.x = old_x
     rect.y = old_y
-    if move.flip: rect.flip()
+    if move.flip:
+      rect.flip()
     from_box.add_rect(rect)
 
     return Score(box_count, incident_edges)
-
-    
-
-
 
   def compute_incident_edge_coordinates(self) -> int:
     '''number of coordinates that at least 2 rectangles share.'''
@@ -253,11 +251,11 @@ class BoxSolution(Solution):
     return edges
 
 
-    
+
   def get_score(self) -> Score:
     # Very large number
     if not self.is_valid():
-      return Score(sys.maxsize, sys.minsize)
+      return Score(sys.maxsize, -sys.maxsize - 1)
 
     # Count non-empty boxes and incident edges between rects as scoring criteria
     box_counts =  len(self.boxes)
