@@ -13,3 +13,4 @@ def get_mode(algo: OptimizationAlgorithm):
   match algo.__name__:
     case "LocalSearch": return NeighborhoodDefinition
     case "GreedySearch": return SelectionSchema
+    case "SimulatedAnnealing": return NeighborhoodDefinition

@@ -32,6 +32,8 @@ def get_geometric_neighbors(solution: BoxSolution):
   '''
   neighbors = []
 
+  # TODO: needs an option for a rect to be moved into a new box
+
   # Iterate over all rectangles in all boxes
   for current_box in sorted(solution.boxes.values(), key=lambda box: len(box.rects)):
     for current_rect in current_box.rects.values():
