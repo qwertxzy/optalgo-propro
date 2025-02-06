@@ -8,6 +8,7 @@ from typing import Type
 from neighborhoods.neighborhood import Neighborhood
 from neighborhoods.geometric import Geometric
 from neighborhoods.geometric_overlap import GeometricOverlap
+from neighborhoods.permutation import Permutation
 
 from .base import OptimizationAlgorithm
 
@@ -25,10 +26,10 @@ class LocalSearch(OptimizationAlgorithm):
     if neighborhood_definition == GeometricOverlap:
       self.problem.currently_permissible_overlap = 0.2
 
-  def set_strategy(self, neighborhood_definition: Neighborhood):
+  def set_strategy(self, strategy: Neighborhood):
     '''Sets the neighborhood definition.'''
-    print(f"Set the neighborhood definition to {neighborhood_definition}")
-    LocalSearch.strategy = neighborhood_definition
+    print(f"Set the neighborhood definition to {strategy}")
+    LocalSearch.strategy = strategy
     # See todo in __init__
     if LocalSearch.strategy == GeometricOverlap:
       self.problem.currently_permissible_overlap = 0.2
@@ -43,23 +44,21 @@ class LocalSearch(OptimizationAlgorithm):
 
     print(f"Found {len(neighbors)} neighbors")
 
+    # TODO: this is nasty, but the other option is rewriting moves to also fit the permutation neighborhood
+    # We need to discern between explicit neighbors or moves
+    if self.strategy == Permutation:
+      best_score = min([n.get_score() for n in neighbors])
+      # Pick one of the best neighbors at random
+      best_neighbors = [n for n in neighbors if n.get_score() == best_score]
+      best_neighbor = random.choice(best_neighbors)
+      # Set the neighbor
+      self.problem.current_solution = best_neighbor
+    else:
+      best_score = min([n.score for n in neighbors])
+      # Pick one of the best neighbors at random
+      best_neighbors = [n.move for n in neighbors if n.score == best_score]
+      best_neighbor = random.choice(best_neighbors)
+      # actually apply the move
+      self.problem.current_solution.apply_move(best_neighbor)
 
-    # Get the best score from the neighbors
-    best_score = min([n.score for n in neighbors])
-    print(f"Best score: {best_score}")
-
-    # Pick one of the best neighbors at random
-    # NOTE: Tends to plateau on two alternating solutions, so shuffle pick one of the best ones instead?
-
-    # pick a neighbor with the best score
-    best_neighbors = [n.move for n in neighbors if n.score == best_score]
-    best_neighbor = random.choice(best_neighbors)
-
-    # actually apply the move
-    self.problem.current_solution.apply_move(best_neighbor)
-
-    # calculate the score of the new solution
-    best_score = self.problem.current_solution.get_score()
     print(f"now at score {self.problem.current_solution.get_score()}")
-
-    print(f"Current score: {best_score}")

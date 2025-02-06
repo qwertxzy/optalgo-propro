@@ -15,7 +15,7 @@ class Neighborhood(ABC):
 
   @classmethod
   @abstractmethod
-  def get_neighbors(cls, solution: BoxSolution) -> list[ScoredMove]:
+  def get_neighbors(cls, solution: BoxSolution) -> list[ScoredMove] | list[BoxSolution]:
     '''
     Calculates neighbors of a given start solution.
     '''
