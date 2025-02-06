@@ -1,6 +1,5 @@
 from itertools import product
 
-
 from .rectangle import Rectangle
 
 class Box:
@@ -92,7 +91,7 @@ class Box:
     if self.dirty:
       self.recalculate_stats()
     return self.adjacent_coordinates
-  
+
   def get_incident_edge_count(self) -> int:
     '''
     Returns the number of coordinates that at least 2 rectangles in this box share.
@@ -121,17 +120,14 @@ class Box:
     Recalculates the number of adjacent edge coordinates of the rectangles in this box.
     '''
     self.incident_edge_count = 0
-    
+
     # count edge coordinate occurrences in a map of (coordinate -> count)
     edge_count: dict[tuple[int, int], int] = dict()
     for rect in self.rects.values():
       for edge in rect.get_edges():
-        edge_count[edge] = edge_count.get(edge, 0) + 1     
+        edge_count[edge] = edge_count.get(edge, 0) + 1
 
     # count all edges that are incident to more than one rectangle
     for count in edge_count.values():
       if count > 1:
         self.incident_edge_count += 1
-
-
-

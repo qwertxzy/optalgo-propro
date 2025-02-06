@@ -34,4 +34,3 @@ def get_mode_superclass(algo: Type[OptimizationAlgorithm]) -> Type[Neighborhood]
     case "LocalSearch": return Neighborhood
     case "GreedySearch": return SelectionSchema
     case _: raise ValueError("Algorithm not supported")
-   
