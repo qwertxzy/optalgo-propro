@@ -3,11 +3,12 @@ Contains different selection schemas for the greedy algorithm.
 '''
 
 from itertools import product
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 from problem import BoxSolution, Rectangle, Box
+from ..mode import Mode
 
-class SelectionSchema(ABC):
+class SelectionSchema(Mode):
   '''Base class for all different selection schemas'''
   # TODO: assignment calls for a second schema
 

@@ -9,9 +9,7 @@ import sys
 from random import choice
 from itertools import combinations
 
-from geometry.rectangle import Rectangle
-from geometry.box import Box
-
+from geometry import Rectangle, Box
 
 class Score:
   '''
@@ -80,7 +78,7 @@ class Solution(ABC):
   Abstract base class for a generic optimization solution.
   '''
   @abstractmethod
-  def get_score(self) -> float:
+  def get_score(self) -> Score:
     '''
     Computes and returns the score of this solution.
     '''
@@ -198,7 +196,7 @@ class BoxSolution(Solution):
 
     # Check if the rect would overlap with any other rect in the new box
     for other_rect in to_box.rects.values():
-      if rect.overlaps(other_rect, 0.00):
+      if rect.overlaps(other_rect, self.currently_permissible_overlap):
         return False
     return True
 
@@ -250,8 +248,6 @@ class BoxSolution(Solution):
       edges += box.get_incident_edge_count()
     return edges
 
-
-
   def get_score(self) -> Score:
     # Very large number
     if not self.is_valid():
@@ -264,44 +260,44 @@ class BoxSolution(Solution):
     return Score(box_counts, incident_edges)
 
 
-## DEPRECATED, now in box.py
-  def compute_incident_edges(self) -> int:
-    '''
-    Computes the number of unit lengths of edges
-    that overlap from adjacent rectangles
-    '''
-    edges = 0
-    # Go over all boxes
-    for box in self.boxes.values():
-      # Go over all possible pairs of rects within this box
-      for (rect_a, rect_b) in combinations(box.rects.values(), 2):
-        # Call the one with smaller origin left, the other right rect
-        left_rect, right_rect = sorted([rect_a, rect_b], key=lambda r: (r.x, r.y))
+  # DEPRECATED, now in box.py
+  # def compute_incident_edges(self) -> int:
+  #   '''
+  #   Computes the number of unit lengths of edges
+  #   that overlap from adjacent rectangles
+  #   '''
+  #   edges = 0
+  #   # Go over all boxes
+  #   for box in self.boxes.values():
+  #     # Go over all possible pairs of rects within this box
+  #     for (rect_a, rect_b) in combinations(box.rects.values(), 2):
+  #       # Call the one with smaller origin left, the other right rect
+  #       left_rect, right_rect = sorted([rect_a, rect_b], key=lambda r: (r.x, r.y))
 
-        # Check for incidence in x coordinate and add possible overlap
-        if left_rect.x + left_rect.width == right_rect.x:
-          overlap = min(left_rect.y + left_rect.height, right_rect.y + right_rect.height) - max(left_rect.y, right_rect.y)
-          edges += max(overlap, 0)
-        # Check for incidence in y coordinate and add possible overlap
-        if left_rect.y + left_rect.height == right_rect.y:
-          overlap = min(left_rect.x + left_rect.width, right_rect.x + right_rect.width) - max(left_rect.x, right_rect.x)
-          edges += max(overlap, 0)
+  #       # Check for incidence in x coordinate and add possible overlap
+  #       if left_rect.x + left_rect.width == right_rect.x:
+  #         overlap = min(left_rect.y + left_rect.height, right_rect.y + right_rect.height) - max(left_rect.y, right_rect.y)
+  #         edges += max(overlap, 0)
+  #       # Check for incidence in y coordinate and add possible overlap
+  #       if left_rect.y + left_rect.height == right_rect.y:
+  #         overlap = min(left_rect.x + left_rect.width, right_rect.x + right_rect.width) - max(left_rect.x, right_rect.x)
+  #         edges += max(overlap, 0)
 
-      # To weigh these more than the box edge, multiply current count by 2
-      edges *= 2
+  #     # To weigh these more than the box edge, multiply current count by 2
+  #     edges *= 2
 
-      # Go over all rects (again?) to count edges on the box edge
-      # ..any way to make this neater?
-      for rect in box.rects.values():
-        if rect.x == 0:
-          edges += rect.height
-        if rect.x + rect.width == self.side_length:
-          edges += rect.height
-        if rect.y == 0:
-          edges += rect.width
-        if rect.y + rect.height == self.side_length:
-          edges += rect.width
-    return edges
+  #     # Go over all rects (again?) to count edges on the box edge
+  #     # ..any way to make this neater?
+  #     for rect in box.rects.values():
+  #       if rect.x == 0:
+  #         edges += rect.height
+  #       if rect.x + rect.width == self.side_length:
+  #         edges += rect.height
+  #       if rect.y == 0:
+  #         edges += rect.width
+  #       if rect.y + rect.height == self.side_length:
+  #         edges += rect.width
+  #   return edges
 
 
   def is_valid(self):

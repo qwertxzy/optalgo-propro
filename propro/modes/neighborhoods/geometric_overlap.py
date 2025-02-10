@@ -1,9 +1,10 @@
-from problem import Move, ScoredMove
-from problem import BoxSolution
+from itertools import product
+
+from problem import Move, ScoredMove, BoxSolution
 from .neighborhood import Neighborhood
 
-class Geometric(Neighborhood):
-  '''Implementation for a geometry-based neighborhood'''
+class GeometricOverlap(Neighborhood):
+  '''Implements a geometric neighborhood definition that allows for adjustable overlap between rects.'''
 
   @classmethod
   def get_neighbors(cls, solution: BoxSolution) -> list[ScoredMove]:
@@ -11,7 +12,8 @@ class Geometric(Neighborhood):
     Calculates neighbors of a solution by geometric means
     Moves every rectangle in every box to every possible coordinate
     '''
-    print("Calculating Geometric neighborhoods")
+    print("Calculating Geometric neighborhoods with overlap")
+
     neighbors = []
     current_score = solution.get_score()
 
@@ -21,8 +23,8 @@ class Geometric(Neighborhood):
         # Now iterate over all possible moves! A rect can be placed
         # ... in any box
         for possible_box in solution.boxes.values():
-          # ... in any free coordinate within this box
-          for (x, y) in list(possible_box.get_adjacent_coordinates()):
+          # ... in any coordinate within this box
+          for (x, y) in product(range(possible_box.side_length), range(possible_box.side_length)):
             # ... at any rotation
             for is_flipped in [False, True]:
 
@@ -33,7 +35,6 @@ class Geometric(Neighborhood):
               # no flip if the rect is square
               if current_rect.width == current_rect.height and is_flipped:
                 continue
-
 
               move = Move(current_rect.id, current_box.id, possible_box.id, x, y, is_flipped)
 

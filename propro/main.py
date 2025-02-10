@@ -6,17 +6,14 @@ from math import sqrt, floor
 from argparse import ArgumentParser
 import threading
 import random
-from itertools import chain
 import FreeSimpleGUI as sg
 
 from problem import BoxSolution, BoxProblem
-from algorithms.base import OptimizationAlgorithm
-from algorithms.utils import get_mode
-
-from neighborhoods.neighborhood import Neighborhood
-from constants import BOX_SPACING
-from selection_schemas.selections import SelectionSchema
+from algorithms import OptimizationAlgorithm, get_algo_by_name
+from modes import get_available_modes, get_mode_by_name
 from config import RunConfiguration, show_config_picker
+
+BOX_SPACING = 2
 
 def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float):
   '''
@@ -53,11 +50,8 @@ def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float)
         rect_top_left[1] + rect.height * scaling_factor
       )
       graph.draw_rectangle(rect_top_left, rect_bot_right, fill_color='red')
-      #graph.draw_rectangle(rect_top_left, rect_bot_right)
 
-    # Debug or leave this in? Maybe as an option
     # Paint the box's free coordinate search space
-    #for (x, y) in box.get_free_coordinates():
     for (x, y) in list(box.get_adjacent_coordinates()):
       coord_top_left = (
         box_top_left[0] + (x - 0.1) * scaling_factor,
@@ -95,11 +89,11 @@ def show_app(config: RunConfiguration):
       sg.Input("10", k="num_ticks"),
       sg.Slider(range=(1, 10), default_value=2, resolution=0.5, key='scaling', enable_events=True, orientation='h'),
       sg.Listbox(
-        [e.__name__ for e in config.available_modes],
+        [e.__name__ for e in get_available_modes(config.algorithm)],
         select_mode='LISTBOX_SELECT_MODE_EXTENDED',
         enable_events=True,
         key='mode',
-        default_values=[config.selected_mode.__name__],
+        default_values=[config.mode.__name__],
         size=(25, 3)
       )
     ],
@@ -127,7 +121,7 @@ def show_app(config: RunConfiguration):
     w_range=config.rect_x_size,
     h_range=config.rect_y_size
   )
-  optimization_algorithm: OptimizationAlgorithm = config.algorithm(optimization_problem, config.selected_mode)
+  optimization_algorithm: OptimizationAlgorithm = config.algorithm(optimization_problem, config.mode)
 
   while True:
     draw_solution(graph, optimization_algorithm.get_current_solution(), scaling_factor=values['scaling'])
@@ -140,9 +134,9 @@ def show_app(config: RunConfiguration):
       case "tick_btn":
         threading.Thread(target=tick_thread_wrapper, args=(optimization_algorithm, window), daemon=True).start()
       case "mode":
-        #optimization_algorithm.set_neighborhood_definition(NeighborhoodDefinition[values['mode'][0]])
-        optimization_algorithm.strategy = get_mode(config.algorithm, values['mode'][0])
-        optimization_algorithm.set_strategy(optimization_algorithm.strategy)
+        mode = get_mode_by_name(optimization_algorithm.__class__, values['mode'][0])
+        if mode is not None:
+          optimization_algorithm.set_strategy(mode)
       case "TICK DONE":
         window.refresh()
 
@@ -158,8 +152,7 @@ if __name__ == "__main__":
   parser.add_argument(
     "--mode",
     type=str,
-    # Not as cool & dynamic as the rest here, but eh..
-    help=f"Possible values: {[m.__name__ for m in Neighborhood.__subclasses__()]}" #TODO also print selections
+    help=f"Possible values: {[m.__name__ for m in get_available_modes(None)]}"
   )
   parser.add_argument(
     "--rect-number",
@@ -197,11 +190,11 @@ if __name__ == "__main__":
 
   try:
     # Get algorithm class from the name
-    algo = next(filter(lambda a: a.__name__ == args.algorithm, OptimizationAlgorithm.__subclasses__()))
-    Mode = next(filter(lambda m: m.__name__ == args.mode, Neighborhood.__subclasses__()))
+    algo = get_algo_by_name(args.algorithm)
+    mode = get_mode_by_name(algo, args.mode)
     config = RunConfiguration(
       algorithm=algo,
-      mode=Mode[args.mode],
+      mode=mode,
       rect_number=args.rect_number,
       rect_x_size=range(*[int(i) for i in args.rect_x.split("-")]),
       rect_y_size=range(*[int(i) for i in args.rect_y.split("-")]),

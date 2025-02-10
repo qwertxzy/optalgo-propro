@@ -1,7 +1,7 @@
 from copy import deepcopy
 
-from neighborhoods.neighborhood import Neighborhood, ScoredMove
 from problem import BoxSolution
+from .neighborhood import Neighborhood, ScoredMove
 
 class Permutation(Neighborhood):
   '''Implementation for a permutation-based neighborhood'''

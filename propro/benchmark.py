@@ -11,7 +11,7 @@ from rich.table import Table
 from rich.console import Console
 
 from algorithms import OptimizationAlgorithm
-from algorithms.utils import get_modes
+from modes import get_available_modes
 from problem import BoxProblem
 
 parser = ArgumentParser()
@@ -65,7 +65,7 @@ results = []
 # Loop over every algorithm
 for Algorithm in OptimizationAlgorithm.__subclasses__():
   # Loop over every mode for this algorithm
-  for Mode in get_modes(Algorithm):
+  for Mode in get_available_modes(Algorithm):
 
     # Initialize problem
     optimization_problem = BoxProblem(
@@ -100,7 +100,7 @@ for Algorithm in OptimizationAlgorithm.__subclasses__():
 # Print results
 table = Table("Algorithm", "Mode", "Time (s)", "Score (#Boxes)")
 for (algo, mode, t, score) in results:
-  table.add_row(algo, mode, f"{t:0.6f}", str(score[0]))
+  table.add_row(algo, mode, f"{t:0.6f}", str(score.box_count))
 
 console = Console()
 console.print(table)
