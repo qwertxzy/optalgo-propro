@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 import sys
 from random import choice
 from itertools import combinations
+from typing import Optional
 
 from geometry import Rectangle, Box
 
@@ -172,8 +173,6 @@ class BoxSolution(Solution):
       print(f"Removed box {move.from_box_id}")
       print(f"Now have {len(self.boxes)} boxes")
 
-
-
   def is_valid_move(self, move: Move) -> bool:
     '''
     Checks whether a move of a rectangle to a new box and coordinates is valid
@@ -259,47 +258,6 @@ class BoxSolution(Solution):
     incident_edges = self.compute_incident_edge_coordinates()
     return Score(box_counts, incident_edges)
 
-
-  # DEPRECATED, now in box.py
-  # def compute_incident_edges(self) -> int:
-  #   '''
-  #   Computes the number of unit lengths of edges
-  #   that overlap from adjacent rectangles
-  #   '''
-  #   edges = 0
-  #   # Go over all boxes
-  #   for box in self.boxes.values():
-  #     # Go over all possible pairs of rects within this box
-  #     for (rect_a, rect_b) in combinations(box.rects.values(), 2):
-  #       # Call the one with smaller origin left, the other right rect
-  #       left_rect, right_rect = sorted([rect_a, rect_b], key=lambda r: (r.x, r.y))
-
-  #       # Check for incidence in x coordinate and add possible overlap
-  #       if left_rect.x + left_rect.width == right_rect.x:
-  #         overlap = min(left_rect.y + left_rect.height, right_rect.y + right_rect.height) - max(left_rect.y, right_rect.y)
-  #         edges += max(overlap, 0)
-  #       # Check for incidence in y coordinate and add possible overlap
-  #       if left_rect.y + left_rect.height == right_rect.y:
-  #         overlap = min(left_rect.x + left_rect.width, right_rect.x + right_rect.width) - max(left_rect.x, right_rect.x)
-  #         edges += max(overlap, 0)
-
-  #     # To weigh these more than the box edge, multiply current count by 2
-  #     edges *= 2
-
-  #     # Go over all rects (again?) to count edges on the box edge
-  #     # ..any way to make this neater?
-  #     for rect in box.rects.values():
-  #       if rect.x == 0:
-  #         edges += rect.height
-  #       if rect.x + rect.width == self.side_length:
-  #         edges += rect.height
-  #       if rect.y == 0:
-  #         edges += rect.width
-  #       if rect.y + rect.height == self.side_length:
-  #         edges += rect.width
-  #   return edges
-
-
   def is_valid(self):
     # Go over all rects in all boxes
     for box in self.boxes.values():
@@ -313,3 +271,16 @@ class BoxSolution(Solution):
         if rect_a.overlaps(rect_b, self.currently_permissible_overlap):
           return False
     return True
+
+  def to_greedy_queue(self) -> list[Rectangle]:
+    '''
+    Empties all the rectangles from the solution
+    and returns them in a list for a greedy algorithm to solve
+    '''
+    rects = []
+    for box in self.boxes.values():
+      for rect_id in list(box.rects.keys()):
+        rects.append(box.remove_rect(rect_id))
+    # Remove now empty boxes from solution
+    self.boxes.clear()
+    return rects

@@ -10,20 +10,15 @@ from ..mode import Mode
 
 class SelectionSchema(Mode):
   '''Base class for all different selection schemas'''
-  # TODO: assignment calls for a second schema
 
   @classmethod
   @abstractmethod
-  def select(cls, partial_solution: BoxSolution, rect: Rectangle) -> BoxSolution:
-    '''Returns the selection function for this schema'''
-
-class FirstFit(SelectionSchema):
-  '''First fit selection schema'''
+  def select(cls, partial_solution: BoxSolution, unprocessed_rects: list[Rectangle]) -> int:
+    '''Looks at the current solution and returns one rectangle via id from the input list to be placed next'''
 
   @classmethod
-  def fits_rect(cls, box: Box, box_length: int, rect: Rectangle) -> tuple[int, int] | None:
+  def __fits_rect(cls, box: Box, box_length: int, rect: Rectangle) -> tuple[int, int] | None:
     '''Checks if a given rect fits somewhere in a box and returns the origin coordinates if possible'''
-    # TODO: do something smarter :)
     # Loop over all origins
     for origin in product(range(box_length), range(box_length)):
       # Set x/y of rect to these coordinates
@@ -35,13 +30,13 @@ class FirstFit(SelectionSchema):
     return None
 
   @classmethod
-  def select(cls, partial_solution: BoxSolution, rect: Rectangle) -> BoxSolution:
+  def insert_object(cls, partial_solution: BoxSolution, rect: Rectangle) -> BoxSolution:
     '''
-    Returns the first possible fit for a given rectangle in the boxes.
-    If every rectangle gets its first fit, the number of boxes should be minimal.
+    Inserts a given rectangle into the partial solution.
+    If no fit was found, a new box is created to accomodate it.
     '''
     for box in partial_solution.boxes.values():
-      possible_fit = FirstFit.fits_rect(box, partial_solution.side_length, rect)
+      possible_fit = cls.__fits_rect(box, partial_solution.side_length, rect)
       if possible_fit is not None:
         rect.x, rect.y = possible_fit
         box.add_rect(rect)
