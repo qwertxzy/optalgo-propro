@@ -4,7 +4,7 @@ Implementation of a local search algorithm
 
 import random
 
-from modes import Neighborhood, Geometric, GeometricOverlap, Permutation
+from modes import Neighborhood, Geometric, GeometricOverlap
 from .base import OptimizationAlgorithm
 
 class LocalSearch(OptimizationAlgorithm):
@@ -38,22 +38,12 @@ class LocalSearch(OptimizationAlgorithm):
 
     print(f"Found {len(neighbors)} neighbors")
 
-    # TODO: this is nasty, but the other option is rewriting moves to also fit the permutation neighborhood
-    # We need to discern between explicit neighbors or moves
-    if self.strategy == Permutation:
-      best_score = min([n.get_score() for n in neighbors])
-      # Pick one of the best neighbors at random
-      best_neighbors = [n for n in neighbors if n.get_score() == best_score]
-      best_neighbor = random.choice(best_neighbors)
-      # Set the neighbor
-      self.problem.current_solution = best_neighbor
-    else:
-      best_score = min([n.score for n in neighbors])
-      # Pick one of the best neighbors at random
-      best_neighbors = [n.move for n in neighbors if n.score == best_score]
-      best_neighbor = random.choice(best_neighbors)
-      # actually apply the move
-      self.problem.current_solution.apply_move(best_neighbor)
+    best_score = min([n.score for n in neighbors])
+    # Pick one of the best neighbors at random
+    best_neighbors = [n.move for n in neighbors if n.score == best_score]
+    best_neighbor = random.choice(best_neighbors)
+    # Actually apply the move
+    best_neighbor.apply_to_solution(self.problem.current_solution)
 
     # TODO: also not really something that should be handled in the search algorithm?
     # Adjust permissible overlap
@@ -61,4 +51,4 @@ class LocalSearch(OptimizationAlgorithm):
     new_overlap = max (0, current_overlap - 1  / self.problem.current_solution.get_score().box_count)
     self.problem.current_solution.currently_permissible_overlap = new_overlap
 
-    print(f"now at score {self.problem.current_solution.get_score()}")
+    print(f"Now at score {self.problem.current_solution.get_score()}")

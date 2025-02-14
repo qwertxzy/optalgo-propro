@@ -1,7 +1,12 @@
 from itertools import product
 
-from problem import Move, ScoredMove, BoxSolution
+from problem import BoxSolution
 from .neighborhood import Neighborhood
+from ..move import ScoredMove
+from .geometric import GeometricMove
+
+# TODO: stealing move from geometric neigborhood for now
+# TODO: Also finally implement this neighborhood definition for real..
 
 class GeometricOverlap(Neighborhood):
   '''Implements a geometric neighborhood definition that allows for adjustable overlap between rects.'''
@@ -36,7 +41,7 @@ class GeometricOverlap(Neighborhood):
               if current_rect.width == current_rect.height and is_flipped:
                 continue
 
-              move = Move(current_rect.id, current_box.id, possible_box.id, x, y, is_flipped)
+              move = GeometricMove(current_rect.id, current_box.id, possible_box.id, x, y, is_flipped)
 
               # check if the solution would be valid
               if not solution.is_valid_move(move):

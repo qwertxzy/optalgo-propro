@@ -3,7 +3,7 @@ Implementation of a greedy search algorithm
 '''
 from typing import Any
 
-from modes import SelectionSchema
+from modes import SelectionSchema, SelectionMove
 from problem import Problem
 from .base import OptimizationAlgorithm
 
@@ -32,8 +32,11 @@ class GreedySearch(OptimizationAlgorithm):
       return
 
     # Get the next object with the given strategy
-    next_obj_id = self.strategy.select(self.problem.current_solution, self.unprocessed_objects.values())
-    next_obj = self.unprocessed_objects.pop(next_obj_id)
+    next_move: SelectionMove = self.strategy.select(self.problem.current_solution, self.unprocessed_objects.values())
 
     # Insert it into the solution
-    self.problem.current_solution = SelectionSchema.insert_object(self.problem.current_solution, next_obj)
+    next_move.apply_to_solution(self.problem.current_solution)
+
+    # Pop it from the list
+    # TODO: not generic again aaa awhere do I put this?!?!
+    self.unprocessed_objects.pop(next_move.rect.id)

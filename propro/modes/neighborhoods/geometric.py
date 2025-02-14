@@ -1,9 +1,16 @@
-from problem import Move, ScoredMove, BoxSolution
+from dataclasses import dataclass
+
+from problem import BoxSolution
+from geometry import Box
+
 from .neighborhood import Neighborhood
+from ..move import Move, ScoredMove
 
 class Geometric(Neighborhood):
   '''Implementation for a geometry-based neighborhood'''
 
+  # TODO: will sometimes return 0 neighbors even though visually there should be some?
+  # TODO: Add the option to move a rect into a new box? Might be needed for simulated annealing
   @classmethod
   def get_neighbors(cls, solution: BoxSolution) -> list[ScoredMove]:
     '''
@@ -33,10 +40,9 @@ class Geometric(Neighborhood):
               if current_rect.width == current_rect.height and is_flipped:
                 continue
 
+              move = GeometricMove(current_rect.id, current_box.id, possible_box.id, x, y, is_flipped)
 
-              move = Move(current_rect.id, current_box.id, possible_box.id, x, y, is_flipped)
-
-              # check if the solution would be valid
+              # Check if the solution would be valid
               if not solution.is_valid_move(move):
                 continue
 
@@ -55,13 +61,75 @@ class Geometric(Neighborhood):
                 print(f"Early returned with {len(neighbors)} neighbors. Removed one Box.")
                 return neighbors
 
-              # Once a neighbor is found that reduces the main scoring criteria, early return?
-              # # Dramatically speeds up early convergence
-              # if score.box_count < solution.get_score().box_count:
-              #    print(f"Early returned with {len(neighbors)} neighbors")
-              #    return neighbors
-              if len(neighbors) > cls.MAX_NEIGHBORS:
+              if len(neighbors) > max(cls.MAX_NEIGHBORS, len(solution.boxes) ** 2):
                 print(f"Early returned with {len(neighbors)} neighbors")
                 return neighbors
     print(f"Explored all {len(neighbors)} neighbors")
     return neighbors
+
+@dataclass
+class GeometricMove(Move):
+  '''Defines a move as a literal movement of a rectangle from one box to another'''
+  rect_id: int
+  from_box_id: int
+  to_box_id: int
+  new_x: int
+  new_y: int
+  flip: bool
+
+  old_x: int
+  old_y: int
+
+  def __init__(self, rect_id: int, from_box_id: int, to_box_id:int, new_x: int, new_y: int, flip: bool):
+    self.rect_id = rect_id
+    self.from_box_id = from_box_id
+    self.to_box_id = to_box_id
+    self.new_x = new_x
+    self.new_y = new_y
+    self.flip = flip
+    self.old_x = None
+    self.old_y = None
+
+  def apply_to_solution(self, solution: BoxSolution):
+    '''Applies this move to a given box solution'''
+    # Get rect in old box
+    current_box = solution.boxes[self.from_box_id]
+    current_rect = current_box.remove_rect(self.rect_id)
+
+    # Save the old rect coordinates in case of undo
+    self.old_x = current_rect.x
+    self.old_y = current_rect.y
+
+    # Update rect coordinates
+    current_rect.x = self.new_x
+    current_rect.y = self.new_y
+    if self.flip:
+      current_rect.flip()
+
+    new_box = solution.boxes[self.to_box_id]
+    new_box.add_rect(current_rect)
+
+    # If the current box is now empty, remove it from the solution
+    if len(current_box.rects) == 0:
+      solution.boxes.pop(self.from_box_id)
+      print(f"Removed box {self.from_box_id}")
+
+  def undo(self, solution: BoxSolution):
+    '''Undoes whatever this move had done to the argument solution'''
+    if self.old_x is None or self.old_y is None:
+      raise ValueError("Undo called without the move being performed before!")
+
+    # Remove rect from target box
+    rect = solution.boxes.get(self.to_box_id).remove_rect(self.rect_id)
+
+    # Restore attributes
+    rect.x = self.old_x
+    rect.y = self.old_y
+    if self.flip:
+      rect.flip()
+
+    # Maybe the old box was deleted by the move? Otherwise just add it back
+    if self.from_box_id not in solution.boxes.keys():
+      solution.boxes[self.from_box_id] = Box(self.from_box_id, solution.side_length, rect)
+    else:
+      solution.boxes[self.from_box_id].add_rect(rect)

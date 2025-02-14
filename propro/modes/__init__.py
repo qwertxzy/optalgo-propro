@@ -6,7 +6,8 @@ as well as their concrete implementations as
 '''
 
 from .mode import Mode
-from .selection_schemas import SelectionSchema, ByLengthSelection, ByAreaSelection
-from .neighborhoods import Neighborhood, ScoredMove
+from .move import Move, ScoredMove
+from .selection_schemas import SelectionSchema, BySpaceSelection, ByAreaSelection, SelectionMove
+from .neighborhoods import Neighborhood
 from .neighborhoods import Permutation, Geometric, GeometricOverlap
 from .util import get_available_modes, get_mode_by_name

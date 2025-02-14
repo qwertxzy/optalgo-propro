@@ -8,23 +8,23 @@ from abc import ABC, abstractmethod
 import sys
 from random import choice
 from itertools import combinations
-from typing import Optional
+from dataclasses import dataclass
 
 from geometry import Rectangle, Box
 
+@dataclass
 class Score:
   '''
   Represents the score of a solution.
   '''
-  def __init__(self, box_count: int, incident_edges: int):
-    self.box_count = box_count
-    self.incident_edges = incident_edges
+  box_count: int
+  incident_edges: int
 
   def __iter__(self):
     return iter((self.box_count, self.incident_edges))
 
   def __repr__(self):
-    return f"Score(box_count={self.box_count}, incident_edges={self.incident_edges})"
+    return f"Score({self.box_count=}, {self.incident_edges=})"
 
   def __lt__(self, other: Score):
     #TODO: tweak this to make it more efficient
@@ -35,38 +35,6 @@ class Score:
 
   def __le__(self, other: Score):
     return self < other or self == other
-
-class Move:
-  '''
-  Represents a move of a rectangle from one box to another.
-  '''
-  def __init__(self, rect_id: int, from_box_id: int, to_box_id: int, new_x: int, new_y: int, flip: bool):
-    self.rect_id = rect_id
-    self.from_box_id = from_box_id
-    self.to_box_id = to_box_id
-    self.new_x = new_x
-    self.new_y = new_y
-    self.flip = flip
-
-  def __iter__(self):
-    return iter((self.rect_id, self.from_box_id, self.to_box_id, self.new_x, self.new_y, self.flip))
-
-  def __repr__(self):
-    return f"Move(rect_id={self.rect_id}, from_box_id={self.from_box_id}, to_box_id={self.to_box_id}, new_x={self.new_x}, new_y={self.new_y}, flip={self.flip})"
-
-class ScoredMove:
-  '''
-  Represents a move with its potential score.
-  '''
-  def __init__(self, move: Move, score: Score):
-    self.move = move
-    self.score = score
-
-  def __iter__(self):
-    return iter((self.move, self.score))
-
-  def __repr__(self):
-    return f"ScoredMove(move={self.move}, score={self.score})"
 
 class Problem(ABC):
   '''
@@ -87,12 +55,6 @@ class Solution(ABC):
   def is_valid(self) -> bool:
     '''
     Checks whether this solution is valid in the first place.
-    '''
-
-  @abstractmethod
-  def apply_move(self, move: Move):
-    '''
-    Applies a move to the current solution.
     '''
 
 class BoxProblem(Problem):
@@ -143,37 +105,8 @@ class BoxSolution(Solution):
     s += '\n'.join([str(box) for box in self.boxes.values()])
     return s
 
-  def apply_move(self, move: Move):
-    '''
-    Applies a move to the current solution
-    '''
-    print(f"Applying move: {move}")
-    self.move_rect(move)
-
-  def move_rect(self, move: Move):
-    '''
-    Moves a rectangle identified via its id from an old box to new coordinates in a new box
-    '''
-    # Get rect in old box
-    current_box = self.boxes[move.from_box_id]
-    current_rect = current_box.remove_rect(move.rect_id)
-
-    # Update rect coordinates
-    current_rect.x = move.new_x
-    current_rect.y = move.new_y
-    if move.flip:
-      current_rect.flip()
-
-    new_box = self.boxes[move.to_box_id]
-    new_box.add_rect(current_rect)
-
-    # If the current box is now empty, remove it from the solution
-    if len(current_box.rects) == 0:
-      self.boxes.pop(move.from_box_id)
-      print(f"Removed box {move.from_box_id}")
-      print(f"Now have {len(self.boxes)} boxes")
-
-  def is_valid_move(self, move: Move) -> bool:
+  # TODO: this is GeometricMove specific.. should this stay here?
+  def is_valid_move(self, move) -> bool:
     '''
     Checks whether a move of a rectangle to a new box and coordinates is valid
     '''
@@ -199,44 +132,20 @@ class BoxSolution(Solution):
         return False
     return True
 
-  def get_potential_score(self, move: Move) -> Score:
+  def get_potential_score(self, move) -> Score:
     '''
     Calculates the potential score of the solution after a given move.
     Assumes validity of the move.
     '''
-    # Get old box, new box and rect
-    from_box = self.boxes[move.from_box_id]
-    to_box = self.boxes[move.to_box_id]
-    rect = from_box.rects[move.rect_id]
+    # Perform move
+    move.apply_to_solution(self)
 
-    #store the old location
-    old_x = rect.x
-    old_y = rect.y
-
+    # Count scores
     box_count = len(self.boxes)
-    # If the old box is now empty, we will have one box less
-    if len(from_box.rects) == 1 and (move.from_box_id != move.to_box_id):
-      box_count -= 1
-
-
-    # first do the move operation, later redo.
-    from_box.remove_rect(move.rect_id)
-    if move.flip:
-      rect.flip()
-    rect.x = move.new_x
-    rect.y = move.new_y
-    to_box.add_rect(rect)
-
-    #count incident edges
     incident_edges = self.compute_incident_edge_coordinates()
 
     # Undo the move operation
-    to_box.remove_rect(move.rect_id)
-    rect.x = old_x
-    rect.y = old_y
-    if move.flip:
-      rect.flip()
-    from_box.add_rect(rect)
+    move.undo(self)
 
     return Score(box_count, incident_edges)
 
@@ -254,7 +163,6 @@ class BoxSolution(Solution):
 
     # Count non-empty boxes and incident edges between rects as scoring criteria
     box_counts =  len(self.boxes)
-    #incident_edges = self.compute_incident_edges() # In the score calculation we compute a maximization for incident edges.
     incident_edges = self.compute_incident_edge_coordinates()
     return Score(box_counts, incident_edges)
 
