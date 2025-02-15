@@ -1,3 +1,4 @@
+from collections import Counter
 from itertools import product
 
 from .rectangle import Rectangle
@@ -122,12 +123,9 @@ class Box:
     self.incident_edge_count = 0
 
     # count edge coordinate occurrences in a map of (coordinate -> count)
-    edge_count: dict[tuple[int, int], int] = dict()
+    edge_count = Counter()
     for rect in self.rects.values():
-      for edge in rect.get_edges():
-        edge_count[edge] = edge_count.get(edge, 0) + 1
+      edge_count.update(rect.get_edges())
 
-    # count all edges that are incident to more than one rectangle
-    for count in edge_count.values():
-      if count > 1:
-        self.incident_edge_count += 1
+    # Count all edges that are incident to more than one rectangle (have a count > 1)
+    self.incident_edge_count = sum(1 for e in edge_count.values() if e > 1)

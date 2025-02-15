@@ -20,6 +20,10 @@ class Rectangle:
   '''the minimum of width and height'''
   coordinates: set[tuple[int, int]]
   '''Set of all coordinate point this rect covers'''
+  edges: set[tuple[int, int]]
+  '''Set of all edges of this rect'''
+  placeable_edges: set[tuple[int, int]]
+  '''Set of the bottom & right edges of this rect'''
 
   # could include overlapping properties here
   # overlapArea: int = 0
@@ -45,6 +49,7 @@ class Rectangle:
     self.min_size = min(w, h)
     self.id = i
     self.__recompute_coordinates()
+    self.__recompute_edges()
 
   def __repr__(self):
     return f"[{self.id}: ({self.__x}+{self.width}/{self.__y}+{self.height})]"
@@ -114,70 +119,69 @@ class Rectangle:
     overlap_area = overlap_width * overlap_height
     return (overlap_area / (self.get_area() + other.get_area())) > permissible_overlap
 
+  def __recompute_edges(self):
+    # Placeable edges
+    self.placeable_edges = set()
+    self.placeable_edges |= self.get_edge("bottom")
+    self.placeable_edges |= self.get_edge("right")
+    # All edges are these + top and left
+    self.edges = set(self.placeable_edges)
+    self.edges |= self.get_edge("top")
+    self.edges |= self.get_edge("left")
+
   def get_edges(self) -> set[tuple[int, int]]:
     '''Returns a set of the edge coordinates of the rectangle'''
-    ret: set[tuple[int, int]] = set()
-    ret = ret.union(self.get_edge("top"))
-    ret = ret.union(self.get_edge("bottom"))
-    ret = ret.union(self.get_edge("left"))
-    ret = ret.union(self.get_edge("right"))
-    return ret
+    return self.edges
 
   def get_placeable_edges(self) -> set[tuple[int, int]]:
     '''Returns a set of the edge coordinates of the rectangle for right and bottom edges'''
-    ret: set[tuple[int, int]] = set()
-    ret = ret.union(self.get_edge("bottom"))
-    ret = ret.union(self.get_edge("right"))
-    return ret
+    return self.placeable_edges
 
   def get_edge(self, direction: str) -> set[tuple[int, int]]:
     '''
     Returns a set of the edge coordinates of the rectangle for a certain direction.
     Valid directions: "top", "bottom", "left", "right"
     '''
-    if direction == "top":
-      return set(product(
-        range(self.__x, self.__x + self.width+1),
-        [self.__y]
+    match direction:
+      case "top": return set(product(
+          range(self.__x, self.__x + self.width + 1),
+          [self.__y]
+        ))
+      case "bottom": return set(product(
+          range(self.__x, self.__x + self.width + 1),
+          [self.__y + self.height]
       ))
-    if direction == "bottom":
-      return set(product(
-        range(self.__x, self.__x + self.width+1),
-        [self.__y + self.height]
+      case "left": return set(product(
+          [self.__x],
+          range(self.__y, self.__y + self.height + 1)
       ))
-    if direction == "left":
-      return set(product(
-        [self.__x],
-        range(self.__y, self.__y + self.height+1)
+      case "right": return set(product(
+          [self.__x + self.width],
+          range(self.__y, self.__y + self.height + 1)
       ))
-    if direction == "right":
-      return set(product(
-        [self.__x + self.width],
-        range(self.__y, self.__y + self.height+1)
-      ))
-    raise ValueError("Invalid direction: " + direction)
+      case d: raise ValueError(f"Invalid direction: {d}")
 
-  def add_adjacent(self, other: Rectangle) -> bool:
-    '''Add a rectangle as adjacent to this one'''
-    # TODO: check if this is a valid adjacency
-    if other.id == self.id:
-      return False
-    self.adjacents[other.id] = other
-    return True
+  # def add_adjacent(self, other: Rectangle) -> bool:
+  #   '''Add a rectangle as adjacent to this one'''
+  #   # TODO: check if this is a valid adjacency
+  #   if other.id == self.id:
+  #     return False
+  #   self.adjacents[other.id] = other
+  #   return True
 
-  def remove_adjacent(self, other: Rectangle) -> bool:
-    '''Remove a rectangle as adjacent to this one'''
-    if other == self:
-      return False
-    if not other.id in self.adjacents:
-      return False
-    self.adjacents.pop(other.id)
-    return True
+  # def remove_adjacent(self, other: Rectangle) -> bool:
+  #   '''Remove a rectangle as adjacent to this one'''
+  #   if other == self:
+  #     return False
+  #   if not other.id in self.adjacents:
+  #     return False
+  #   self.adjacents.pop(other.id)
+  #   return True
 
-  def is_adjacent(self, other: Rectangle) -> bool:
-    '''Check if a rectangle is adjacent to this one.
-    Must have been already added as adjacent before.'''
-    return other.id in self.adjacents
+  # def is_adjacent(self, other: Rectangle) -> bool:
+  #   '''Check if a rectangle is adjacent to this one.
+  #   Must have been already added as adjacent before.'''
+  #   return other.id in self.adjacents
 
   # Commented out since overlaps field  was also commented out
   # def update_overlap(self):
@@ -214,6 +218,7 @@ class Rectangle:
     '''Flip the rectangle'''
     self.width, self.height = self.height, self.width
     self.__recompute_coordinates()
+    self.__recompute_edges()
 
   # NOTE: Tried an alternative move_by method for relative offset, but it ended up being slower
   def move_to(self, new_x: int, new_y: int):
@@ -221,6 +226,7 @@ class Rectangle:
     self.__x = new_x
     self.__y = new_y
     self.__recompute_coordinates()
+    self.__recompute_edges()
 
   # Is this still needed?
   # def move(self, direction: str, distance: int):
