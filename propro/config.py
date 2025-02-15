@@ -8,19 +8,17 @@ from typing import Optional
 
 import FreeSimpleGUI as sg
 
-from neighborhoods import NeighborhoodDefinition
-from selections import SelectionSchema
-from algorithms.base import OptimizationAlgorithm
-from algorithms.utils import get_mode
-from algorithms.local_search import LocalSearch
+from algorithms import OptimizationAlgorithm, LocalSearch, get_algo_by_name
+from modes import Mode, get_available_modes, get_mode_by_name
 
 @dataclass
 class RunConfiguration:
-  '''Encapsulates all nessecary information to run the application'''
+  '''Encapsulates all nessecary information to run the application. 
+  This information stays the same during the run, to be able to restart the same configuration.'''
 
   # Solver specific
   algorithm: OptimizationAlgorithm
-  mode: NeighborhoodDefinition | SelectionSchema
+  mode: Mode
 
   # Problem specific
   rect_number: int
@@ -40,23 +38,23 @@ def show_config_picker(
   '''Shows a dialogue for the user to pick config values. Accepts optional default values'''
   # Try and parse default mode for correct pre-selection
   algo = next(filter(lambda a: a.__name__ == algo_default, OptimizationAlgorithm.__subclasses__()), LocalSearch)
-  Mode = get_mode(algo)
+  mode = next(filter(lambda m: m.__name__ == mode_default, get_available_modes(algo)), get_available_modes(algo)[0])
 
   # Frame for the Solver specific options
   solver_layout = [
     [
       sg.Listbox([a.__name__ for a in OptimizationAlgorithm.__subclasses__()],
                  # Preselect the first in list
-                 default_values=algo_default if algo_default else [OptimizationAlgorithm.__subclasses__()[0].__name__],
+                 default_values=algo_default if algo_default else [algo.__name__],
                  k="algo",
                  select_mode="LISTBOX_SELECT_MODE_SINGLE",
                  size=(25,5),
                  no_scrollbar=True,
                  enable_events=True
                  ),
-      sg.Listbox([e.name for e in Mode],
-                 # Just the first that python comes up with
-                 default_values=mode_default if mode_default else [next(Mode.__iter__()).name],
+                 # Just get modes for the same random algo as above
+      sg.Listbox([m.__name__ for m in get_available_modes(algo)],
+                 default_values=mode.__name__ if mode else [mode.__name__],
                  k="mode",
                  select_mode="LISTBOX_SELECT_MODE_SINGLE",
                  size=(25, 5),
@@ -105,20 +103,20 @@ def show_config_picker(
         return None
       case "algo":
         # If algorithm selection changes, update the neighborhood/selection box accordingly
-        match values["algo"][0]:
-          case "LocalSearch":
-            window["mode"].update(values=[e.name for e in NeighborhoodDefinition])
-          case "GreedySearch":
-            window["mode"].update(values=[e.name for e in SelectionSchema])
+        algo = get_algo_by_name(values["algo"][0])
+        window["mode"].update([m.__name__ for m in get_available_modes(algo)])
       case "Ok":
         # Get algorithm class from the name
-        algo_name = values["algo"][0]
-        algo = next(filter(lambda a: a.__name__ == algo_name, OptimizationAlgorithm.__subclasses__()))
-        Mode = get_mode(algo)
+        algo = get_algo_by_name(values["algo"][0])
+        mode = get_mode_by_name(algo, values["mode"][0])
+
+        # None check
+        if algo is None or mode is None:
+          raise RuntimeError("Somehow choosing a name from a precomputed list yielded an unexpected result.")
 
         config = RunConfiguration(
           algo,
-          Mode[values["mode"][0]],
+          mode,
           int(values["n_rect"]),
           range(int(values["x_min"]), int(values["x_max"])),
           range(int(values["y_min"]), int(values["y_max"])),

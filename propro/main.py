@@ -6,18 +6,14 @@ from math import sqrt, floor
 from argparse import ArgumentParser
 import threading
 import random
-from itertools import chain
-
 import FreeSimpleGUI as sg
 
 from problem import BoxSolution, BoxProblem
-from algorithms.base import OptimizationAlgorithm
-from algorithms.utils import get_mode
-
-from neighborhoods import NeighborhoodDefinition
-from constants import BOX_SPACING
-from selections import SelectionSchema
+from algorithms import OptimizationAlgorithm, get_algo_by_name
+from modes import get_available_modes, get_mode_by_name
 from config import RunConfiguration, show_config_picker
+
+BOX_SPACING = 2
 
 def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float):
   '''
@@ -44,7 +40,7 @@ def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float)
     graph.draw_rectangle(top_left=box_top_left, bottom_right=box_bot_right, fill_color='gray')
 
     # Also paint the box's rectangles
-    for rect in box.rects.values():
+    for rect in list(box.rects.values()):
       rect_top_left = (
         box_top_left[0] + rect.x * scaling_factor,
         box_top_left[1] + rect.y * scaling_factor
@@ -55,16 +51,15 @@ def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float)
       )
       graph.draw_rectangle(rect_top_left, rect_bot_right, fill_color='red')
 
-    # Debug or leave this in? Maybe as an option
     # Paint the box's free coordinate search space
-    for (x, y) in box.get_free_coordinates():
+    for (x, y) in list(box.get_adjacent_coordinates()):
       coord_top_left = (
-        box_top_left[0] + (x + 0.25) * scaling_factor,
-        box_top_left[1] + (y + 0.25) * scaling_factor
+        box_top_left[0] + (x - 0.1) * scaling_factor,
+        box_top_left[1] + (y - 0.1) * scaling_factor
       )
       coord_bot_right = (
-        box_top_left[0] + (x + 0.75) * scaling_factor,
-        box_top_left[1] + (y + 0.75) * scaling_factor
+        box_top_left[0] + (x + 0.1) * scaling_factor,
+        box_top_left[1] + (y + 0.1) * scaling_factor
       )
       graph.draw_rectangle(coord_top_left, coord_bot_right, fill_color='blue')
 
@@ -94,11 +89,11 @@ def show_app(config: RunConfiguration):
       sg.Input("10", k="num_ticks"),
       sg.Slider(range=(1, 10), default_value=2, resolution=0.5, key='scaling', enable_events=True, orientation='h'),
       sg.Listbox(
-        [e.name for e in type(config.mode)],
+        [e.__name__ for e in get_available_modes(config.algorithm)],
         select_mode='LISTBOX_SELECT_MODE_EXTENDED',
         enable_events=True,
         key='mode',
-        default_values=[config.mode.name],
+        default_values=[config.mode.__name__],
         size=(25, 3)
       )
     ],
@@ -120,13 +115,13 @@ def show_app(config: RunConfiguration):
   values = {'scaling': 2} # Hacky way to keep draw_solution above window.read
 
   # OptAlgo stuff
-  optimization_problem = BoxProblem(
+  optimization_problem: BoxProblem = BoxProblem(
     box_length=config.box_length,
     n_rect=config.rect_number,
     w_range=config.rect_x_size,
     h_range=config.rect_y_size
   )
-  optimization_algorithm = config.algorithm(optimization_problem, config.mode)
+  optimization_algorithm: OptimizationAlgorithm = config.algorithm(optimization_problem, config.mode)
 
   while True:
     draw_solution(graph, optimization_algorithm.get_current_solution(), scaling_factor=values['scaling'])
@@ -139,7 +134,9 @@ def show_app(config: RunConfiguration):
       case "tick_btn":
         threading.Thread(target=tick_thread_wrapper, args=(optimization_algorithm, window), daemon=True).start()
       case "mode":
-        optimization_algorithm.set_neighborhood_definition(NeighborhoodDefinition[values['mode'][0]])
+        mode = get_mode_by_name(optimization_algorithm.__class__, values['mode'][0])
+        if mode is not None:
+          optimization_algorithm.set_strategy(mode)
       case "TICK DONE":
         window.refresh()
 
@@ -155,8 +152,7 @@ if __name__ == "__main__":
   parser.add_argument(
     "--mode",
     type=str,
-    # Not as cool & dynamic as the rest here, but eh..
-    help=f"Possible values: {[m.name for m in chain(NeighborhoodDefinition, SelectionSchema)]}"
+    help=f"Possible values: {[m.__name__ for m in get_available_modes(None)]}"
   )
   parser.add_argument(
     "--rect-number",
@@ -194,11 +190,11 @@ if __name__ == "__main__":
 
   try:
     # Get algorithm class from the name
-    algo = next(filter(lambda a: a.__name__ == args.algorithm, OptimizationAlgorithm.__subclasses__()))
-    Mode = get_mode(algo)
+    algo = get_algo_by_name(args.algorithm)
+    mode = get_mode_by_name(algo, args.mode)
     config = RunConfiguration(
       algorithm=algo,
-      mode=Mode[args.mode],
+      mode=mode,
       rect_number=args.rect_number,
       rect_x_size=range(*[int(i) for i in args.rect_x.split("-")]),
       rect_y_size=range(*[int(i) for i in args.rect_y.split("-")]),

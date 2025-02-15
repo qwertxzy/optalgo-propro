@@ -6,7 +6,7 @@ import random
 import sys
 from math import exp
 
-from neighborhoods import NeighborhoodDefinition
+from modes import Neighborhood, Geometric, GeometricOverlap
 from problem import Solution
 
 from .base import OptimizationAlgorithm
@@ -23,22 +23,22 @@ class SimulatedAnnealing(OptimizationAlgorithm):
   inner_loop_counter: int
   # TODO: save best-so-far solution and present it to the user somehow
 
-  def __init__(self, problem, neighborhood_definition: NeighborhoodDefinition = NeighborhoodDefinition.GEOMETRIC):
+  def __init__(self, problem, neighborhood_definition: type[Neighborhood] = Geometric):
     super().__init__(problem)
     self.temperature = START_TEMP
     self.inner_loop_counter = 0
     self.neighborhood_definition = neighborhood_definition
     # TODO: just set permissible overlap here, should be set by some kind of schedule?
     #       can only be tested once neighborhood exploration speeds up..
-    if neighborhood_definition == NeighborhoodDefinition.GEOMETRIC_OVERLAP:
+    if neighborhood_definition == GeometricOverlap:
       self.problem.currently_permissible_overlap = 0.2
 
-  def set_neighborhood_definition(self, neighborhood_definition: NeighborhoodDefinition):
+  def set_neighborhood_definition(self, neighborhood_definition: type[Neighborhood]):
     '''Sets the neighborhood definition.'''
     print(f"Set the neighborhood definition to {neighborhood_definition}")
     self.neighborhood_definition = neighborhood_definition
     # See todo in __init__
-    if neighborhood_definition == NeighborhoodDefinition.GEOMETRIC_OVERLAP:
+    if neighborhood_definition == GeometricOverlap:
       self.problem.currently_permissible_overlap = 0.2
 
   def __accept_solution(self, new_solution: Solution):

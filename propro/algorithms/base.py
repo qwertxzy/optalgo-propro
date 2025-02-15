@@ -5,6 +5,7 @@ Module contains a base definition of an optimization algorithm
 from abc import ABC, abstractmethod
 
 from problem import Problem, Solution
+from modes import Mode
 
 class OptimizationAlgorithm(ABC):
   '''
@@ -12,9 +13,14 @@ class OptimizationAlgorithm(ABC):
   Expects to implement something to initialize the algorithm and something to compute one iteration.
   '''
   problem: Problem
+  strategy: Mode
 
   def __init__(self, problem):
     self.problem = problem
+
+  def set_strategy(self, strategy: Mode):
+    '''Sets the strategy for the algorithm.'''
+    self.strategy = strategy
 
   @abstractmethod
   def tick(self) -> Solution:

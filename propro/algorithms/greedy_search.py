@@ -1,10 +1,10 @@
 '''
 Implementation of a greedy search algorithm
 '''
+from typing import Any
 
-from selections import SelectionSchema
-from problem import Rectangle
-
+from modes import SelectionSchema, SelectionMove
+from problem import Problem
 from .base import OptimizationAlgorithm
 
 class GreedySearch(OptimizationAlgorithm):
@@ -12,34 +12,31 @@ class GreedySearch(OptimizationAlgorithm):
   Implements a greedy selection scheme for the solution space
   '''
 
-  # TODO: is this generic enough of an interface? How to generify this?
-  unplaced_rects: list[Rectangle]
-  selection_schema: SelectionSchema
+  unprocessed_objects: dict[int, Any]
 
-  # Override constructor to remove all initially placed rects
-  def __init__(self, problem, selection_schema):
-    self.unplaced_rects = []
-    self.selection_schema = selection_schema
+  # Override constructor to strip initial solution
+  def __init__(self, problem: Problem, selection_schema: SelectionSchema):
+    self.unprocessed_objects = []
+    self.strategy = selection_schema
 
-    for box in problem.current_solution.boxes.values():
-      for rect_id in list(box.rects.keys()):
-        self.unplaced_rects.append(box.remove_rect(rect_id))
-
-    # IDEA: sort rects by size to use big ones first
-    self.unplaced_rects.sort(key=lambda r: r.get_area(), reverse=False)
-
-    # Remove now empty boxes from solution
-    problem.current_solution.boxes.clear()
+    # Init the dict from the given initial solution
+    # (this will clear the current solution as well)
+    self.unprocessed_objects = { r.id: r for r in  problem.current_solution.to_greedy_queue() }
 
     # Now call the base constructor
     super().__init__(problem)
 
   def tick(self):
-    # If there are no unplaced rects we are done here
-    if len(self.unplaced_rects) == 0:
+    # If there are no unplaced objects we are done here
+    if len(self.unprocessed_objects) == 0:
       return
 
-    selection_method = self.selection_schema.get_selection_schema()
-    # Pop a rect from the list and get the best move
-    next_rect = self.unplaced_rects.pop()
-    self.problem.current_solution = selection_method(self.problem.current_solution, next_rect)
+    # Get the next object with the given strategy
+    next_move: SelectionMove = self.strategy.select(self.problem.current_solution, self.unprocessed_objects.values())
+
+    # Insert it into the solution
+    next_move.apply_to_solution(self.problem.current_solution)
+
+    # Pop it from the list
+    # TODO: not generic again aaa awhere do I put this?!?!
+    self.unprocessed_objects.pop(next_move.rect.id)
