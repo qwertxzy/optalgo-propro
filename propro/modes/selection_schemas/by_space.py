@@ -80,7 +80,7 @@ class BySpaceSelection(SelectionSchema):
 
         # Pick the one based on the minimal difference between width and height to the target
         rect = min(possible_rects, key=lambda r: (width - r.width, height - r.height))
-        rect.move_to(coordinate)
+        rect.move_to(*coordinate)
         return SelectionMove(rect, box.id)
     # If we get to here, no coordinate in any box returned a possible rect, so a new box must be created
     new_box = Box(len(partial_solution.boxes), partial_solution.side_length)

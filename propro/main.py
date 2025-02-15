@@ -75,7 +75,6 @@ def tick_thread_wrapper(algo: OptimizationAlgorithm, window: sg.Window):
   window["tick_btn"].update(disabled=True, text="Working...")
 
   # Get number of ticks to run
-  # TODO: really needs a "run continuous" mode..
   num_ticks = int(window["num_ticks"].get())
   for _ in range(num_ticks):
     algo.tick()
@@ -118,7 +117,6 @@ def show_app(config: RunConfiguration):
   window = sg.Window("Optimierungsalgorithmen Programmierprojekt", layout, resizable=True)
   graph = window['graph']
   window.finalize()
-  values = {'scaling': 2} # Hacky way to keep draw_solution above window.read
 
   # OptAlgo stuff
   optimization_problem: BoxProblem = BoxProblem(
@@ -129,13 +127,13 @@ def show_app(config: RunConfiguration):
   )
   optimization_algorithm: OptimizationAlgorithm = config.algorithm(optimization_problem, config.mode)
 
+  draw_solution(graph, optimization_algorithm.get_current_solution(), scaling_factor=2)
+
   while True:
-    draw_solution(graph, optimization_algorithm.get_current_solution(), scaling_factor=values['scaling'])
     event, values = window.read()
 
     match event:
       case "Exit" | sg.WIN_CLOSED:
-        # TODO: needs to kill the algorithm thread if its still running
         break
       case "tick_btn":
         threading.Thread(target=tick_thread_wrapper, args=(optimization_algorithm, window), daemon=True).start()
@@ -144,6 +142,7 @@ def show_app(config: RunConfiguration):
         if mode is not None:
           optimization_algorithm.set_strategy(mode)
       case "TICK DONE":
+        draw_solution(graph, optimization_algorithm.get_current_solution(), scaling_factor=values['scaling'])
         window.refresh()
 
 # Entrypoint, will either get config as args or via gui dialogue

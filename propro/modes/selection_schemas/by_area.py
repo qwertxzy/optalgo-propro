@@ -36,7 +36,7 @@ class ByAreaSelection(SelectionSchema):
     for box in partial_solution.boxes.values():
       possible_fit = ByAreaSelection.__fits_rect(box, partial_solution.side_length, rect)
       if possible_fit is not None:
-        rect.move_to(possible_fit)
+        rect.move_to(*possible_fit)
         return SelectionMove(rect, box.id)
     # If no box had room, create a new one
     new_box = Box(len(partial_solution.boxes), partial_solution.side_length)
