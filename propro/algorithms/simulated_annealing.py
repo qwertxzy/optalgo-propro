@@ -2,17 +2,18 @@
 Implementation for a simulated annealing algorithm
 '''
 
+import logging
 import random
-import sys
 from math import exp
 
 from modes import Neighborhood, Geometric, GeometricOverlap, ScoredMove
-
 
 from .base import OptimizationAlgorithm
 
 START_TEMP = 100.0
 TEMP_STEPS = 10
+
+logger = logging.getLogger(__name__)
 
 # A simulated annealing is basically local search with the off chance of
 # choosing a worse neighbor every now and then
@@ -36,7 +37,7 @@ class SimulatedAnnealing(OptimizationAlgorithm):
 
   def set_strategy(self, strategy: type[Neighborhood]):
     '''Sets the neighborhood definition.'''
-    print(f"Set the neighborhood definition to {strategy}")
+    logger.info("Set the neighborhood definition to %s", strategy)
     self.strategy = strategy
     # See todo in __init__
     if strategy == GeometricOverlap:
@@ -73,17 +74,17 @@ class SimulatedAnnealing(OptimizationAlgorithm):
     # .. and update the temperature according to the schedule
     # TODO: what's a good function here?
     self.temperature = self.temperature ** 0.995
-    print(f"Temperature set to {self.temperature}")
+    logger.info("Temperature set to %f", self.temperature)
 
   def tick(self):
      # Get all possible neighbors
     neighbors = self.strategy.get_neighbors(self.get_current_solution())
 
     if len(neighbors) == 0:
-      print("Algorithm stuck! No neighbors could be found.")
+      logger.warning("Algorithm stuck! No neighbors could be found.")
       return
 
-    print(f"Found {len(neighbors)} neighbors")
+    logger.info("Found %i neighbors", len(neighbors))
 
     # Get a random move
     neighbor = random.choice(neighbors)

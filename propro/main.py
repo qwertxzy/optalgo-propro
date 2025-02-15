@@ -2,6 +2,7 @@
 Main application module of this project.
 '''
 
+import logging
 from math import sqrt, floor
 from argparse import ArgumentParser
 import threading
@@ -17,6 +18,9 @@ BOX_SPACING = 2
 
 # TODO: Assignment calls for gui to be able to re-generate instances and restart with other algo / mode
 # TODO: With moves modifying the solution in-place, the gui sometimes shows garbled graphics when drawing during get_potential_score()
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO) # TODO: make log level a parameter
 
 def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float):
   '''
@@ -204,7 +208,7 @@ if __name__ == "__main__":
     )
   #pylint: disable=W0718
   except Exception as e:
-    print("Could not get complete configuration from args, showing config picker..")
+    logger.info("Could not get complete configuration from args, showing config picker..")
     config = show_config_picker(
       algo_default=args.algorithm,
       mode_default=args.mode,

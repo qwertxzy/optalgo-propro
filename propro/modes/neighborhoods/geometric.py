@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 
 from problem import BoxSolution
@@ -5,6 +6,8 @@ from geometry import Box
 
 from .neighborhood import Neighborhood
 from ..move import Move, ScoredMove
+
+logger = logging.getLogger(__name__)
 
 class Geometric(Neighborhood):
   '''Implementation for a geometry-based neighborhood'''
@@ -19,7 +22,7 @@ class Geometric(Neighborhood):
     Calculates neighbors of a solution by geometric means
     Moves every rectangle in every box to every possible coordinate
     '''
-    print("Calculating Geometric neighborhoods")
+    logger.info("Calculating Geometric neighborhoods")
     neighbors = []
     current_score = solution.get_score()
 
@@ -60,13 +63,13 @@ class Geometric(Neighborhood):
 
               # Once a solution found that removes one box entirely, early return
               if current_score.box_count > score.box_count:
-                print(f"Early returned with {len(neighbors)} neighbors. Removed one Box.")
+                logger.info("Early returned with %i neighbors. Removed one Box.", len(neighbors))
                 return neighbors
 
               if len(neighbors) > max(cls.MAX_NEIGHBORS, len(solution.boxes) ** 2):
-                print(f"Early returned with {len(neighbors)} neighbors")
+                logger.info("Early returned with %i neighbors", len(neighbors))
                 return neighbors
-    print(f"Explored all {len(neighbors)} neighbors")
+    logger.info("Explored all %i neighbors", len(neighbors))
     return neighbors
 
 @dataclass
@@ -113,7 +116,7 @@ class GeometricMove(Move):
     # If the current box is now empty, remove it from the solution
     if len(current_box.rects) == 0:
       solution.boxes.pop(self.from_box_id)
-      print(f"Removed box {self.from_box_id}")
+      logger.debug("Removed box %i", self.from_box_id)
 
   def undo(self, solution: BoxSolution):
     '''Undoes whatever this move had done to the argument solution'''

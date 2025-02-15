@@ -1,11 +1,13 @@
+import logging
 from dataclasses import dataclass
-from itertools import product
 
 from geometry import Box, Rectangle
 from utils import flatten
 from problem import BoxSolution
 from .neighborhood import Neighborhood
 from ..move import ScoredMove, Move
+
+logger = logging.getLogger(__name__)
 
 class Permutation(Neighborhood):
   '''Implementation for a permutation-based neighborhood'''
@@ -16,7 +18,7 @@ class Permutation(Neighborhood):
     Encodes the solution into a long list of rects that get placed from top left-to bottom-right
     in each box. Then computes permutations of this list and turns them back to solutions.
     '''
-    print("Claculating Permutation neighborhood")
+    logger.info("Claculating Permutation neighborhood")
 
     neighbors = []
 

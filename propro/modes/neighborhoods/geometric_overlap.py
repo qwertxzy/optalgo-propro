@@ -1,3 +1,4 @@
+import logging
 from itertools import product
 
 from problem import BoxSolution
@@ -8,6 +9,8 @@ from .geometric import GeometricMove
 # TODO: stealing move from geometric neigborhood for now
 # TODO: Also finally implement this neighborhood definition for real..
 
+logger = logging.getLogger(__name__)
+
 class GeometricOverlap(Neighborhood):
   '''Implements a geometric neighborhood definition that allows for adjustable overlap between rects.'''
 
@@ -17,7 +20,7 @@ class GeometricOverlap(Neighborhood):
     Calculates neighbors of a solution by geometric means
     Moves every rectangle in every box to every possible coordinate
     '''
-    print("Calculating Geometric neighborhoods with overlap")
+    logger.info("Calculating Geometric neighborhoods with overlap")
 
     neighbors = []
     current_score = solution.get_score()
@@ -59,16 +62,11 @@ class GeometricOverlap(Neighborhood):
 
               # Once a solution found that removes one box entirely, early return
               if current_score.box_count > score.box_count:
-                print(f"Early returned with {len(neighbors)} neighbors. Removed one Box.")
+                logger.info("Early returned with %i neighbors. Removed one Box.", len(neighbors))
                 return neighbors
 
-              # Once a neighbor is found that reduces the main scoring criteria, early return?
-              # # Dramatically speeds up early convergence
-              # if score.box_count < solution.get_score().box_count:
-              #    print(f"Early returned with {len(neighbors)} neighbors")
-              #    return neighbors
               if len(neighbors) > cls.MAX_NEIGHBORS:
-                print(f"Early returned with {len(neighbors)} neighbors")
+                logger.info("Early returned with %i neighbors", len(neighbors))
                 return neighbors
-    print(f"Explored all {len(neighbors)} neighbors")
+    logger.info("Explored all %i neighbors", len(neighbors))
     return neighbors

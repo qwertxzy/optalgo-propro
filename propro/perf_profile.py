@@ -1,3 +1,4 @@
+import logging
 import cProfile
 import pstats
 import random
@@ -7,20 +8,22 @@ from problem import BoxProblem
 from algorithms import *
 from modes import *
 
+logging.basicConfig(level=logging.INFO)
+
 # Fix rng seed to make runs comparable
 random.seed(1337)
 
 # Set your values here
 
-RECT_NUMBER = 500
+RECT_NUMBER = 250
 RECT_X = range(10)
 RECT_Y = range(10)
 BOX_LENGTH = 15
 
-NUM_TICKS = 100
+NUM_TICKS = 300
 
-ALGO = LocalSearch
-MODE = Geometric
+ALGO = GreedySearch
+MODE = BySpaceSelection
 
 # Construct basic objects
 
@@ -32,8 +35,11 @@ my_algo = ALGO(my_problem, MODE)
 pr = cProfile.Profile()
 pr.enable()
 
-for _ in range(NUM_TICKS):
-  my_algo.tick()
+try:
+  for _ in range(NUM_TICKS):
+    my_algo.tick()
+except KeyboardInterrupt:
+  pass
 
 pr.disable()
 ps = pstats.Stats(pr).sort_stats(pstats.SortKey.TIME)
