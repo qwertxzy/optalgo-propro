@@ -34,7 +34,7 @@ class GeometricOverlap(Neighborhood):
             for is_flipped in [False, True]:
 
               # no move
-              if current_box.id == possible_box.id and current_rect.x == x and current_rect.y == y and not is_flipped:
+              if current_box.id == possible_box.id and current_rect.get_x() == x and current_rect.get_y() == y and not is_flipped:
                 continue
 
               # no flip if the rect is square

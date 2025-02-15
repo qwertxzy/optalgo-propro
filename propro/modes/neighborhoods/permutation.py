@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from itertools import product
 
 from geometry import Box, Rectangle
 from utils import flatten
@@ -53,6 +54,34 @@ class PermutationMove(Move):
     '''
     Turns a list of rectangles into a valid solution to the box-rect problem.
     '''
+    boxes = [Box(0, box_length)]
+
+    # Below was a cool idea for better placement, but makes it about 20x slower..
+    # for rect in rects:
+    #   rect_placed = False
+    #   # Try to fit it in every box
+    #   for box in boxes:
+    #     # If it was placed already break box iteration, we've found its home
+    #     if rect_placed:
+    #       break
+
+    #     # Iterate over every possible origin
+    #     for origin in product(range(box_length - rect.width), range(box_length - rect.height)):
+    #       rect.move_to(*origin)
+
+    #       # Place if it fits
+    #       if rect.get_all_coordinates() <= box.get_free_coordinates():
+    #         box.add_rect(rect)
+    #         rect_placed = True
+    #         break
+
+    #   # If none fit, create a new one and put it at 0/0
+    #   if not rect_placed:
+    #     rect.move_to(0, 0)
+    #     new_box = Box(len(boxes), box_length, rect)
+    #     boxes.append(new_box)
+
+    # TODO: off by one error somewhere? bottom and right line are always empty
     # Take rects one by one and put them into a new box..
     # Once one boundary is crossed, start with a new box
     boxes = [Box(0, box_length)]
@@ -63,20 +92,18 @@ class PermutationMove(Move):
     # Go through rects until all have been processed
     for rect in rects:
       # Case 1: Rect fits into this row
-      if next_x + rect.width < box_length and next_y + rect.height < box_length:
+      if next_x + rect.width <= box_length and next_y + rect.height <= box_length:
         # Update this rect's coordinates
-        rect.x = next_x
-        rect.y = current_y
+        rect.move_to(next_x, current_y)
         current_box.add_rect(rect)
         # Also update the next corodinate
         next_x += rect.width
         next_y = max(next_y, current_y + rect.height)
         continue
       #  Case 2: Rects overflows to the right, but fits into a next row within this box
-      if next_x + rect.width >= box_length and next_y + rect.height < box_length:
+      if next_x + rect.width > box_length and next_y + rect.height <= box_length:
         # NOTE: By specification this must fit here, box_length is guaranteed to be larger than any rect side
-        rect.x = 0
-        rect.y = next_y
+        rect.move_to(0, next_y)
         current_box.add_rect(rect)
         # Update coordinates for the next box
         next_x = rect.width
@@ -85,8 +112,7 @@ class PermutationMove(Move):
         continue
       # Case 3: Rect does not fit into this box, create a new one and push it to boxes
       current_box = Box(len(boxes), box_length)
-      rect.x = 0
-      rect.y = 0
+      rect.move_to(0, 0)
       current_box.add_rect(rect)
       boxes.append(current_box)
       # And set the next coordinates again

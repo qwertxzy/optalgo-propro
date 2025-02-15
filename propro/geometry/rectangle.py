@@ -8,19 +8,18 @@ class Rectangle:
   '''
   One rectangle to be fitted into boxes in the box-rect problem.
   '''
-
-  # class variables
-
-  # instance variables
   id: int
-  x: int
-  y: int
+  # Hide these to force usage of move methods
+  __x: int
+  __y: int
   width: int
   height: int
   max_size: int
   '''the maximum of width and height'''
   min_size: int
   '''the minimum of width and height'''
+  coordinates: set[tuple[int, int]]
+  '''Set of all coordinate point this rect covers'''
 
   # could include overlapping properties here
   # overlapArea: int = 0
@@ -38,16 +37,17 @@ class Rectangle:
   '''
 
   def __init__(self, x: int, y: int, w: int, h: int, i: int):
-    self.x = x
-    self.y = y
+    self.__x = x
+    self.__y = y
     self.width = w
     self.height = h
     self.max_size = max(w, h)
     self.min_size = min(w, h)
     self.id = i
+    self.__recompute_coordinates()
 
   def __repr__(self):
-    return f"[{self.id}: ({self.x}+{self.width}/{self.y}+{self.height})]"
+    return f"[{self.id}: ({self.__x}+{self.width}/{self.__y}+{self.height})]"
 
   def __eq__(self, value):
     '''Override equality with id check'''
@@ -57,18 +57,23 @@ class Rectangle:
 
   def copy(self) -> 'Rectangle':
     '''Create a deep copy of this rectangle'''
-    return Rectangle(self.x, self.y, self.width, self.height, self.id)
+    return Rectangle(self.__x, self.__y, self.width, self.height, self.id)
 
   def get_area(self) -> int:
     '''Compute area of the rectangle'''
     return self.width * self.height
 
+  def get_x(self) -> int:
+    '''Returns x coordinate of the rect's origin'''
+    return self.__x
+
+  def get_y(self) -> int:
+    '''Returns y coordinate of the rect's origin'''
+    return self.__y
+
   def get_all_coordinates(self) -> set[tuple[int, int]]:
     '''Returns all possible points of this rect.'''
-    return set(product(
-      range(self.x, self.x + self.width),
-      range(self.y, self.y + self.height)
-    ))
+    return self.coordinates
 
   def contains(self, x: int, y: int) -> bool:
     '''
@@ -76,10 +81,10 @@ class Rectangle:
     !! Excluding the edges. !!
     '''
     checks = [
-      self.x < x,
-      self.x + self.width > x,
-      self.y < y,
-      self.y + self.height > y
+      self.__x < x,
+      self.__x + self.width > x,
+      self.__y < y,
+      self.__y + self.height > y
     ]
     return all(checks)
 
@@ -92,17 +97,17 @@ class Rectangle:
     # If permissible overlap is zero, do strict boundary checks only
     if permissible_overlap == 0.0:
       # Calculate the intersection area
-      x_overlap = max(0, min(self.x + self.width, other.x + other.width) - max(self.x, other.x))
-      y_overlap = max(0, min(self.y + self.height, other.y + other.height) - max(self.y, other.y))
+      x_overlap = max(0, min(self.__x + self.width, other.get_x() + other.width) - max(self.__x, other.get_x()))
+      y_overlap = max(0, min(self.__y + self.height, other.get_y() + other.height) - max(self.__y, other.get_y()))
       intersection_area = x_overlap * y_overlap
       return intersection_area > 0
 
     # If it's not, we need to compute the overlap area of the two rects
     # and compare it against the permissible value
-    overlap_x1 = max(self.x, other.x)
-    overlap_y1 = max(self.y, other.y)
-    overlap_x2 = min(self.x + self.width, other.x + other.width)
-    overlap_y2 = min(self.y + self.height, other.y + other.height)
+    overlap_x1 = max(self.__x, other.get_x())
+    overlap_y1 = max(self.__y, other.get_y())
+    overlap_x2 = min(self.__x + self.width, other.get_x() + other.width)
+    overlap_y2 = min(self.__y + self.height, other.get_y() + other.height)
 
     overlap_width = abs(overlap_x1 - overlap_x2)
     overlap_height = abs(overlap_y1 - overlap_y2)
@@ -132,23 +137,23 @@ class Rectangle:
     '''
     if direction == "top":
       return set(product(
-        range(self.x, self.x + self.width+1),
-        [self.y]
+        range(self.__x, self.__x + self.width+1),
+        [self.__y]
       ))
     if direction == "bottom":
       return set(product(
-        range(self.x, self.x + self.width+1),
-        [self.y + self.height]
+        range(self.__x, self.__x + self.width+1),
+        [self.__y + self.height]
       ))
     if direction == "left":
       return set(product(
-        [self.x],
-        range(self.y, self.y + self.height+1)
+        [self.__x],
+        range(self.__y, self.__y + self.height+1)
       ))
     if direction == "right":
       return set(product(
-        [self.x + self.width],
-        range(self.y, self.y + self.height+1)
+        [self.__x + self.width],
+        range(self.__y, self.__y + self.height+1)
       ))
     raise ValueError("Invalid direction: " + direction)
 
@@ -199,18 +204,33 @@ class Rectangle:
   #   self.overlaps.pop(other.id)
   #   self.update_overlap()
 
+  def __recompute_coordinates(self):
+    self.coordinates = set(product(
+      range(self.__x, self.__x + self.width),
+      range(self.__y, self.__y + self.height)
+    ))
+
   def flip(self):
     '''Flip the rectangle'''
     self.width, self.height = self.height, self.width
+    self.__recompute_coordinates()
 
-  def move(self, direction: str, distance: int):
-    '''move the rectangle in a certain direction for a certain distance. 
-    No validity checks are done here.'''
-    if direction == "horizontal":
-      # try to move it to the left
-      self.x = max(self.x - distance, 0)
-    elif direction == "vertical":
-      # try to move it up
-      self.y = max(self.y - distance, 0)
-    else:
-      raise ValueError("Invalid direction: " + direction)
+  # NOTE: Tried an alternative move_by method for relative offset, but it ended up being slower
+  def move_to(self, new_x: int, new_y: int):
+    '''Will move the rect to a new origin. Expensive, consider using move_by() instead'''
+    self.__x = new_x
+    self.__y = new_y
+    self.__recompute_coordinates()
+
+  # Is this still needed?
+  # def move(self, direction: str, distance: int):
+  #   '''move the rectangle in a certain direction for a certain distance.
+  #   No validity checks are done here.'''
+  #   if direction == "horizontal":
+  #     # try to move it to the left
+  #     self.__x = max(self.__x - distance, 0)
+  #   elif direction == "vertical":
+  #     # try to move it up
+  #     self.__y = max(self.__y - distance, 0)
+  #   else:
+  #     raise ValueError("Invalid direction: " + direction)

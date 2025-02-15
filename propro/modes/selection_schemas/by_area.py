@@ -19,7 +19,8 @@ class ByAreaSelection(SelectionSchema):
     # Loop over all origins
     for origin in product(range(box_length), range(box_length)):
       # Set x/y of rect to these coordinates
-      rect.x, rect.y = origin
+      # TODO: can be refactored to move_by
+      rect.move_to(*origin)
       # See if rect's coordinates are in the set of box free coordinates
       if rect.get_all_coordinates() <= box.get_free_coordinates():
         return origin
@@ -35,12 +36,12 @@ class ByAreaSelection(SelectionSchema):
     for box in partial_solution.boxes.values():
       possible_fit = ByAreaSelection.__fits_rect(box, partial_solution.side_length, rect)
       if possible_fit is not None:
-        rect.x, rect.y = possible_fit
+        rect.move_to(possible_fit)
         return SelectionMove(rect, box.id)
     # If no box had room, create a new one
     new_box = Box(len(partial_solution.boxes), partial_solution.side_length)
     partial_solution.boxes[new_box.id] = new_box
-    (rect.x, rect.y) = (0, 0)
+    rect.move_to(0, 0)
     return SelectionMove(rect, new_box.id)
 
   @classmethod

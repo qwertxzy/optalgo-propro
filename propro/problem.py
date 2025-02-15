@@ -117,8 +117,7 @@ class BoxSolution(Solution):
 
     if move.flip:
       rect.flip()
-    rect.x = move.new_x
-    rect.y = move.new_y
+    rect.move_to(move.new_x, move.new_y)
 
     # Check if the rect would overflow to the right/bottom
     if move.new_x + rect.width > self.side_length:
@@ -171,7 +170,7 @@ class BoxSolution(Solution):
     for box in self.boxes.values():
       # Easy case: Rect is out-of-bounds
       for rect in box.rects.values():
-        if rect.x + rect.width > self.side_length or rect.y + rect.height > self.side_length:
+        if rect.get_x() + rect.width > self.side_length or rect.get_y() + rect.height > self.side_length:
           return False
 
       # Harder case: Rect may overlap with any other in this box

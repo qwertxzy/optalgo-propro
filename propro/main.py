@@ -15,6 +15,9 @@ from config import RunConfiguration, show_config_picker
 
 BOX_SPACING = 2
 
+# TODO: Assignment calls for gui to be able to re-generate instances and restart with other algo / mode
+# TODO: With moves modifying the solution in-place, the gui sometimes shows garbled graphics when drawing during get_potential_score()
+
 def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float):
   '''
   Draws the given box problem solution in the graph
@@ -24,7 +27,6 @@ def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float)
   boxes_per_row = floor(sqrt(len(solution.boxes)))
 
   # Draw the boxes
-  # NOTE: could use itertools.batched() if we switch to python 3.13
   for box_idx, box in enumerate(list(solution.boxes.values())):
     box_row = box_idx % boxes_per_row
     box_idx_in_row = floor(box_idx / boxes_per_row)
@@ -42,8 +44,8 @@ def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float)
     # Also paint the box's rectangles
     for rect in list(box.rects.values()):
       rect_top_left = (
-        box_top_left[0] + rect.x * scaling_factor,
-        box_top_left[1] + rect.y * scaling_factor
+        box_top_left[0] + rect.get_x() * scaling_factor,
+        box_top_left[1] + rect.get_y() * scaling_factor
       )
       rect_bot_right = (
         rect_top_left[0] + rect.width * scaling_factor,

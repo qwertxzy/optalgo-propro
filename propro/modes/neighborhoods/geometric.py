@@ -11,6 +11,8 @@ class Geometric(Neighborhood):
 
   # TODO: will sometimes return 0 neighbors even though visually there should be some?
   # TODO: Add the option to move a rect into a new box? Might be needed for simulated annealing
+  # IDEA: Rects could be fixed to cut down on neighborhood size. Maybe large ones?
+
   @classmethod
   def get_neighbors(cls, solution: BoxSolution) -> list[ScoredMove]:
     '''
@@ -33,7 +35,7 @@ class Geometric(Neighborhood):
             for is_flipped in [False, True]:
 
               # no move
-              if current_box.id == possible_box.id and current_rect.x == x and current_rect.y == y and not is_flipped:
+              if current_box.id == possible_box.id and current_rect.get_x() == x and current_rect.get_y() == y and not is_flipped:
                 continue
 
               # no flip if the rect is square
@@ -97,12 +99,11 @@ class GeometricMove(Move):
     current_rect = current_box.remove_rect(self.rect_id)
 
     # Save the old rect coordinates in case of undo
-    self.old_x = current_rect.x
-    self.old_y = current_rect.y
+    self.old_x = current_rect.get_x()
+    self.old_y = current_rect.get_y()
 
     # Update rect coordinates
-    current_rect.x = self.new_x
-    current_rect.y = self.new_y
+    current_rect.move_to(self.new_x, self.new_y)
     if self.flip:
       current_rect.flip()
 
@@ -123,8 +124,7 @@ class GeometricMove(Move):
     rect = solution.boxes.get(self.to_box_id).remove_rect(self.rect_id)
 
     # Restore attributes
-    rect.x = self.old_x
-    rect.y = self.old_y
+    rect.move_to(self.old_x, self.old_y)
     if self.flip:
       rect.flip()
 

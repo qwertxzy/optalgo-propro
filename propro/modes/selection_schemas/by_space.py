@@ -76,17 +76,16 @@ class BySpaceSelection(SelectionSchema):
         ]
         # If no rects are possible here, continue with next coordinate
         if len(possible_rects) == 0:
-          print(f"Found no rects for origin {coordinate} with {width=} and {height=}")
           continue
 
         # Pick the one based on the minimal difference between width and height to the target
         rect = min(possible_rects, key=lambda r: (width - r.width, height - r.height))
-        (rect.x, rect.y) = coordinate
+        rect.move_to(coordinate)
         return SelectionMove(rect, box.id)
     # If we get to here, no coordinate in any box returned a possible rect, so a new box must be created
     new_box = Box(len(partial_solution.boxes), partial_solution.side_length)
     partial_solution.boxes[new_box.id] = new_box
     # To fill this box, the easiest rect is the one with maximum area
     rect = max(unprocessed_rects, key=lambda r: r.get_area())
-    (rect.x, rect.y) = (0, 0)
+    rect.move_to(0, 0)
     return SelectionMove(rect, new_box.id)
