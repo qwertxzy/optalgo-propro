@@ -6,8 +6,8 @@ import random
 import sys
 from math import exp
 
-from modes import Neighborhood, Geometric, GeometricOverlap
-from problem import Solution
+from modes import Neighborhood, Geometric, GeometricOverlap, ScoredMove
+
 
 from .base import OptimizationAlgorithm
 
@@ -25,39 +25,40 @@ class SimulatedAnnealing(OptimizationAlgorithm):
 
   def __init__(self, problem, neighborhood_definition: type[Neighborhood] = Geometric):
     super().__init__(problem)
+    self.strategy = neighborhood_definition
     self.temperature = START_TEMP
     self.inner_loop_counter = 0
-    self.neighborhood_definition = neighborhood_definition
+
     # TODO: just set permissible overlap here, should be set by some kind of schedule?
     #       can only be tested once neighborhood exploration speeds up..
     if neighborhood_definition == GeometricOverlap:
       self.problem.currently_permissible_overlap = 0.2
 
-  def set_neighborhood_definition(self, neighborhood_definition: type[Neighborhood]):
+  def set_strategy(self, strategy: type[Neighborhood]):
     '''Sets the neighborhood definition.'''
-    print(f"Set the neighborhood definition to {neighborhood_definition}")
-    self.neighborhood_definition = neighborhood_definition
+    print(f"Set the neighborhood definition to {strategy}")
+    self.strategy = strategy
     # See todo in __init__
-    if neighborhood_definition == GeometricOverlap:
+    if strategy == GeometricOverlap:
       self.problem.currently_permissible_overlap = 0.2
 
-  def __accept_solution(self, new_solution: Solution):
+  def __accept_solution(self, scored_move: ScoredMove):
     '''Checks whether a new solution shall be accepted or not'''
     # TODO: Is this a good idea?
     # If overall box count decreases, always accept
-    if self.problem.current_solution.get_score()[0] > new_solution.get_score()[0]:
-      self.problem.current_solution = new_solution
+    if self.problem.current_solution.get_score().box_count > scored_move.score.box_count:
+      scored_move.move.apply_to_solution(self.get_current_solution())
       return
 
     # If not strictly better, do the probabilistic acceptance on the incident edges
-    score_delta = self.problem.current_solution.get_score()[1] - new_solution.get_score()[1]
+    score_delta = self.problem.current_solution.get_score().incident_edges - scored_move.score.incident_edges
     if score_delta <= 0:
       # New solution is better, update
-      self.problem.current_solution = new_solution
+      scored_move.move.apply_to_solution(self.get_current_solution())
     else:
       # Check for temperature chance
       if exp(-score_delta / self.temperature) > random.random():
-        self.problem.current_solution = new_solution
+        scored_move.move.apply_to_solution(self.get_current_solution())
 
   def __update_temperature(self):
     '''Can be called to update the temperature after each algorithm tick'''
@@ -76,15 +77,16 @@ class SimulatedAnnealing(OptimizationAlgorithm):
 
   def tick(self):
      # Get all possible neighbors
-    get_neighbors = self.neighborhood_definition.get_neighborhood_method()
-    neighbors = get_neighbors(self.get_current_solution())
+    neighbors = self.strategy.get_neighbors(self.get_current_solution())
 
     if len(neighbors) == 0:
       print("Algorithm stuck! No neighbors could be found.")
       return
 
-    # Get a random neighbor (but none that is invalid)
-    neighbor = random.choice([n for n in neighbors if n.get_score() != (sys.maxsize, sys.maxsize)])
+    print(f"Found {len(neighbors)} neighbors")
+
+    # Get a random move
+    neighbor = random.choice(neighbors)
 
     # Possibly accept neighbor as new current solution
     self.__accept_solution(neighbor)

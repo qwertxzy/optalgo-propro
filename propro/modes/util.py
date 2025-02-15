@@ -14,6 +14,7 @@ def get_available_modes(algo) -> list[Mode]:
   # Matching by name is a little weird, but type() would only return ABC for both cases..
   match algo.__name__:
     case "LocalSearch": return Neighborhood.__subclasses__()
+    case "SimulatedAnnealing": return Neighborhood.__subclasses__()
     case "GreedySearch": return SelectionSchema.__subclasses__()
     case _: raise ValueError("Algorithm not supported")
 
