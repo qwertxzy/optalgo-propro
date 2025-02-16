@@ -37,12 +37,12 @@ class ByAreaSelection(SelectionSchema):
       possible_fit = ByAreaSelection.__fits_rect(box, partial_solution.side_length, rect)
       if possible_fit is not None:
         rect.move_to(*possible_fit)
-        return SelectionMove(rect, box.id)
+        return SelectionMove(rect.id, box.id)
     # If no box had room, create a new one
     new_box = Box(len(partial_solution.boxes), partial_solution.side_length)
     partial_solution.boxes[new_box.id] = new_box
     rect.move_to(0, 0)
-    return SelectionMove(rect, new_box.id)
+    return SelectionMove(rect.id, new_box.id)
 
   @classmethod
   def select(cls, partial_solution: BoxSolution, unprocessed_rects: list[Rectangle]) -> SelectionMove:

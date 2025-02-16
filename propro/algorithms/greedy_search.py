@@ -35,8 +35,4 @@ class GreedySearch(OptimizationAlgorithm):
     next_move: SelectionMove = self.strategy.select(self.problem.current_solution, self.unprocessed_objects.values())
 
     # Insert it into the solution
-    next_move.apply_to_solution(self.problem.current_solution)
-
-    # Pop it from the list
-    # TODO: not generic again aaa awhere do I put this?!?!
-    self.unprocessed_objects.pop(next_move.rect.id)
+    next_move.apply_to_solution(self.problem.current_solution, self.unprocessed_objects)
