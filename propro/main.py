@@ -6,6 +6,7 @@ import logging
 from math import sqrt, floor
 from argparse import ArgumentParser
 import threading
+from threading import Event
 import random
 import FreeSimpleGUI as sg
 
@@ -17,15 +18,16 @@ from config import RunConfiguration, show_config_picker
 BOX_SPACING = 0.5
 
 # TODO: Assignment calls for gui to be able to re-generate instances and restart with other algo / mode
-# TODO: draw_solution performance could be improved by drawing only boxes that changed and erasing only when scaling changes
+# TODO: highlight last move?
 
 logger = logging.getLogger(__name__)
 
-def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float):
+def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float, erase: bool = False):
   '''
   Draws the given box problem solution in the graph
   '''
-  graph.erase()
+  if erase:
+    graph.erase()
 
   # Pre-calculate constants
   boxes_per_row = floor(sqrt(len(solution.boxes)))
@@ -34,6 +36,13 @@ def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float)
 
   # Draw the boxes
   for box_idx, box in enumerate(list(solution.boxes.values())):
+
+    # Skip box if it doesn't need to be drawn again
+    #  unless we erased the whole graph before
+    if not (box.needs_redraw or erase):
+      continue
+    box.needs_redraw = False
+
     row = box_idx % boxes_per_row
     col = floor(box_idx / boxes_per_row)
 
@@ -67,7 +76,7 @@ def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float)
         fill_color='blue'
       )
 
-def tick_thread_wrapper(algo: OptimizationAlgorithm, window: sg.Window):
+def tick_thread_wrapper(algo: OptimizationAlgorithm, window: sg.Window, tick_complete: Event, redraw_complete: Event):
   '''Wrapper for executing the tick method in its own thread'''
   # Disable the tick button
   window["tick_btn"].update(disabled=True, text="Working...")
@@ -76,7 +85,10 @@ def tick_thread_wrapper(algo: OptimizationAlgorithm, window: sg.Window):
   num_ticks = int(window["num_ticks"].get())
   for _ in range(num_ticks):
     algo.tick()
-    window.write_event_value("TICK DONE", "")
+    # Set tick as complete and wait until redraw is finished
+    tick_complete.set()
+    redraw_complete.wait()
+    redraw_complete.clear()
 
   # Enable button again
   window["tick_btn"].update(disabled=False, text="Tick")
@@ -125,23 +137,51 @@ def show_app(config: RunConfiguration):
   )
   optimization_algorithm: OptimizationAlgorithm = config.algorithm(optimization_problem, config.mode)
 
-  draw_solution(graph, optimization_algorithm.get_current_solution(), scaling_factor=2)
+  draw_solution(graph, optimization_algorithm.get_current_solution(), scaling_factor=2, erase=True)
+
+  # Events to signal the main thread to redraw the current solution
+  tick_complete_event = Event()
+  redraw_complete_event = Event()
+
+  # Keep track of last drawn to erase only when boxcount changes
+  last_box_count = optimization_algorithm.get_current_solution().get_score().box_count
 
   while True:
-    event, values = window.read()
+    event, values = window.read(timeout=5)
 
     match event:
       case "Exit" | sg.WIN_CLOSED:
         break
       case "tick_btn":
-        threading.Thread(target=tick_thread_wrapper, args=(optimization_algorithm, window), daemon=True).start()
+        threading.Thread(
+          target=tick_thread_wrapper,
+          args=(optimization_algorithm, window, tick_complete_event, redraw_complete_event),
+          daemon=True
+        ).start()
       case "mode":
         mode = get_mode_by_name(optimization_algorithm.__class__, values['mode'][0])
         if mode is not None:
           optimization_algorithm.set_strategy(mode)
-      case "TICK DONE":
-        draw_solution(graph, optimization_algorithm.get_current_solution(), scaling_factor=values['scaling'])
-        window.refresh()
+      case "scaling":
+        # Wait until a possible tick is complete and redraw the whole solution
+        # tick_complete_event.wait()
+        draw_solution(graph, optimization_algorithm.get_current_solution(), values['scaling'], erase=True)
+        redraw_complete_event.set()
+
+    # If the redraw event was set, draw & refresh gui
+    if tick_complete_event.is_set():
+      current_solution = optimization_algorithm.get_current_solution()
+      # Check if we need to redraw the whole solution because box count changed
+      if current_solution.get_score().box_count != last_box_count:
+        erase = True
+        last_box_count = current_solution.get_score().box_count
+      else:
+        erase = False
+      # Actually draw
+      draw_solution(graph, current_solution, values['scaling'], erase)
+      window.refresh()
+      tick_complete_event.clear()
+      redraw_complete_event.set()
 
 # Entrypoint, will either get config as args or via gui dialogue
 if __name__ == "__main__":

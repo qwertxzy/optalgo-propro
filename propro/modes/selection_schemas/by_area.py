@@ -19,7 +19,6 @@ class ByAreaSelection(SelectionSchema):
     # Loop over all origins
     for origin in product(range(box_length), range(box_length)):
       # Set x/y of rect to these coordinates
-      # TODO: can be refactored to move_by
       rect.move_to(*origin)
       # See if rect's coordinates are in the set of box free coordinates
       if rect.get_all_coordinates() <= box.get_free_coordinates():

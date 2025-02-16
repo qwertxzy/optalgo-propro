@@ -7,27 +7,21 @@ class Box:
   '''
   One box of the box-rect problem.
   '''
-
-  # class variables
-
-
-  # instance variables
-
-  # Lookup from rect id -> rect obj
   rects: dict[int, Rectangle]
   '''The rectangles currently in this box. Maps rectangle id to rectangle object.'''
   id: int
-
+  '''ID of this rectangle'''
   incident_edge_count: int
   '''number of coordinates that at least 2 rectangles in this box share.'''
-
-  # Quick way to get free coordinates in this box
   free_coords: set[tuple[int, int]]
   '''All free coordinates in this box. These are coordinates used for search space exploration.'''
   adjacent_coordinates: set[tuple[int, int]]
   '''All coordinates adjacent to the rectangles in this box.'''
   dirty: bool = True
   '''Flag to indicate that the adjacent coordinates need to be recalculated.'''
+
+  needs_redraw: bool
+  '''Signifies the drawing method that this box has changed and needs to be redrawn'''
 
   def __repr__(self):
     s = f"{self.id}: "
@@ -47,6 +41,7 @@ class Box:
     self.incident_edge_count = 0
     self.adjacent_coordinates = set()
     self.dirty = True
+    self.needs_redraw = True
     for rect in rects:
       self.add_rect(rect)
 
@@ -59,14 +54,14 @@ class Box:
     self.free_coords = self.free_coords - rect.get_all_coordinates()
     # Set the dirty flag
     self.dirty = True
-
-
+    self.needs_redraw = True
 
   def remove_rect(self, rect_id: int) -> Rectangle:
     '''Removes a rectangle from this box.'''
     # Set coordinates as free again
     self.free_coords = self.free_coords | self.rects[rect_id].get_all_coordinates()
     self.dirty = True
+    self.needs_redraw = True
     # Remove rect from internal dict
     return self.rects.pop(rect_id)
 

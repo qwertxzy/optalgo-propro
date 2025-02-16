@@ -83,7 +83,6 @@ class PermutationMove(Move):
     #     new_box = Box(len(boxes), box_length, rect)
     #     boxes.append(new_box)
 
-    # TODO: off by one error somewhere? bottom and right line are always empty
     # Take rects one by one and put them into a new box..
     # Once one boundary is crossed, start with a new box
     boxes = [Box(0, box_length)]
