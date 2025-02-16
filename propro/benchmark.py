@@ -2,6 +2,7 @@
 Runs benchmarks on the different algorithm varieties.
 '''
 
+import logging
 import random
 import time
 from argparse import ArgumentParser
@@ -13,6 +14,8 @@ from rich.console import Console
 from algorithms import OptimizationAlgorithm
 from modes import get_available_modes
 from problem import BoxProblem
+
+# TODO: Assignment calls for several runs to be executed in one call, is this important?
 
 parser = ArgumentParser()
 
@@ -51,12 +54,24 @@ parser.add_argument(
   type=int,
   help="RNG seed"
 )
+parser.add_argument(
+  "--log",
+  type=str,
+  help="Log level can be one of ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']",
+  default="WARNING"
+)
 
 args = parser.parse_args()
 
 # Fix seed for deterministic problem generation if specified
 if args.seed is not None:
   random.seed(args.seed)
+
+# Set log level
+numeric_level = getattr(logging, args.log.upper(), None)
+if not isinstance(numeric_level, int):
+  raise ValueError(f"Invalid log level: {args.log}")
+logging.basicConfig(level=numeric_level)
 
 # Keep track of results for all variations
 # (Algo / Mode / Time / Score)

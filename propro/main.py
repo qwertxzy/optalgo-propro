@@ -14,60 +14,58 @@ from algorithms import OptimizationAlgorithm, get_algo_by_name
 from modes import get_available_modes, get_mode_by_name
 from config import RunConfiguration, show_config_picker
 
-BOX_SPACING = 2
+BOX_SPACING = 0.5
 
 # TODO: Assignment calls for gui to be able to re-generate instances and restart with other algo / mode
-# TODO: With moves modifying the solution in-place, the gui sometimes shows garbled graphics when drawing during get_potential_score()
+# TODO: draw_solution performance could be improved by drawing only boxes that changed and erasing only when scaling changes
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO) # TODO: make log level a parameter
 
 def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float):
   '''
   Draws the given box problem solution in the graph
   '''
   graph.erase()
-  # Figure out how many boxes fit into one row
+
+  # Pre-calculate constants
   boxes_per_row = floor(sqrt(len(solution.boxes)))
+  scaled_side_length = solution.side_length * scaling_factor
+  scaled_spacing = BOX_SPACING * scaling_factor
 
   # Draw the boxes
   for box_idx, box in enumerate(list(solution.boxes.values())):
-    box_row = box_idx % boxes_per_row
-    box_idx_in_row = floor(box_idx / boxes_per_row)
+    row = box_idx % boxes_per_row
+    col = floor(box_idx / boxes_per_row)
 
-    box_top_left = (
-      box_idx_in_row * (solution.side_length + BOX_SPACING) * scaling_factor,
-      box_row * (solution.side_length + BOX_SPACING) * scaling_factor
+    box_left = col * (scaled_side_length + scaled_spacing)
+    box_top = row * (scaled_side_length + scaled_spacing)
+
+    # Draw box
+    graph.draw_rectangle(
+      top_left=(box_left, box_top),
+      bottom_right=(box_left + scaled_side_length, box_top + scaled_side_length),
+      fill_color='gray'
     )
-    box_bot_right = (
-      box_top_left[0] + solution.side_length * scaling_factor,
-      box_top_left[1] + solution.side_length * scaling_factor
-    )
-    graph.draw_rectangle(top_left=box_top_left, bottom_right=box_bot_right, fill_color='gray')
 
     # Also paint the box's rectangles
     for rect in list(box.rects.values()):
-      rect_top_left = (
-        box_top_left[0] + rect.get_x() * scaling_factor,
-        box_top_left[1] + rect.get_y() * scaling_factor
+      rect_left = box_left + rect.get_x() * scaling_factor
+      rect_top = box_top + rect.get_y() * scaling_factor
+      graph.draw_rectangle(
+        top_left=(rect_left, rect_top),
+        bottom_right=(rect_left + rect.width * scaling_factor, rect_top + rect.height * scaling_factor),
+        fill_color='red'
       )
-      rect_bot_right = (
-        rect_top_left[0] + rect.width * scaling_factor,
-        rect_top_left[1] + rect.height * scaling_factor
-      )
-      graph.draw_rectangle(rect_top_left, rect_bot_right, fill_color='red')
 
     # Paint the box's free coordinate search space
     for (x, y) in list(box.get_adjacent_coordinates()):
-      coord_top_left = (
-        box_top_left[0] + (x - 0.1) * scaling_factor,
-        box_top_left[1] + (y - 0.1) * scaling_factor
+      dot_left = box_left + (x - 0.1) * scaling_factor
+      dot_top = box_top + (y - 0.1) * scaling_factor
+      graph.draw_rectangle(
+        top_left=(dot_left, dot_top),
+        bottom_right=(dot_left + 0.2 * scaling_factor, dot_top + 0.2 * scaling_factor),
+        fill_color='blue'
       )
-      coord_bot_right = (
-        box_top_left[0] + (x + 0.1) * scaling_factor,
-        box_top_left[1] + (y + 0.1) * scaling_factor
-      )
-      graph.draw_rectangle(coord_top_left, coord_bot_right, fill_color='blue')
 
 def tick_thread_wrapper(algo: OptimizationAlgorithm, window: sg.Window):
   '''Wrapper for executing the tick method in its own thread'''
@@ -184,11 +182,24 @@ if __name__ == "__main__":
     type=int,
     help="RNG seed"
   )
+  parser.add_argument(
+    "--log",
+    type=str,
+    help="Log level can be one of ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']",
+    default="WARNING"
+  )
 
   args = parser.parse_args()
 
+  # Set random seed if specified
   if args.seed:
     random.seed(args.seed)
+
+  # Set log level
+  numeric_level = getattr(logging, args.log.upper(), None)
+  if not isinstance(numeric_level, int):
+    raise ValueError(f"Invalid log level: {args.log}")
+  logging.basicConfig(level=numeric_level)
 
   # Try and construct run config from args,
   # and if it fails, show dialogue
