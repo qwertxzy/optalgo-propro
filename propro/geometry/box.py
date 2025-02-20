@@ -67,9 +67,6 @@ class Box:
 
   def get_free_coordinates(self) -> set[tuple[int, int]]:
     '''Returns all currently free x/y coordinates in this box.'''
-    # TODO: This will currently not work with the overlap neighborhood
-    #       But it leaves a nice place for adjusting the search space
-    # IDEA: only explore free coordinates next to other boxes or on the box edge
     return self.free_coords
 
   def recalculate_stats(self):
@@ -102,14 +99,19 @@ class Box:
     '''
     # Clear the set
     self.adjacent_coordinates.clear()
-    # add the left and top edge of the box
-    self.adjacent_coordinates = self.adjacent_coordinates.union(
-      set(product(range(self.side_length+1), [0]))).union(
-      set(product([0], range(self.side_length+1))))
-    # Go over
+
+    # Add the left and top edge of the box
+    self.adjacent_coordinates |= set(product(range(self.side_length + 1), [0]))
+    self.adjacent_coordinates |= set(product([0], range(self.side_length + 1)))
+
+    # Xor each rects edges to the box set, will remove covered edges between two rects
     for rect in self.rects.values():
-      # Add all coordinates adjacent to this rect
-      self.adjacent_coordinates = self.adjacent_coordinates | rect.get_edges()
+      self.adjacent_coordinates ^= rect.get_edges()
+    # ..but that would falsely remove corners where 3 or 4 can intersect, so add these back
+    # NOTE: Will have to go over all rects again,
+    #       but we could probably also live without these 4 points if speed-up is nessecary?
+    for rect in self.rects.values():
+      self.adjacent_coordinates |= rect.get_corners()
 
   def __recalculate_incident_edge_count(self):
     '''
@@ -117,10 +119,15 @@ class Box:
     '''
     self.incident_edge_count = 0
 
-    # count edge coordinate occurrences in a map of (coordinate -> count)
+    # Count edge coordinate occurrences in a map of (coordinate -> count)
     edge_count = Counter()
     for rect in self.rects.values():
       edge_count.update(rect.get_edges())
+      # While we're at it, also count edges of rects that lie on the box border
+      if rect.get_x() == 0 or rect.get_x() + rect.width == self.side_length:
+        self.incident_edge_count += rect.height
+      if rect.get_y() == 0 or rect.get_y() + rect.height == self.side_length:
+        self.incident_edge_count += rect.width
 
-    # Count all edges that are incident to more than one rectangle (have a count > 1)
-    self.incident_edge_count = sum(1 for e in edge_count.values() if e > 1)
+    # Add all edges that are incident to more than one rectangle (have a count > 1)
+    self.incident_edge_count += sum(1 for e in edge_count.values() if e > 1)

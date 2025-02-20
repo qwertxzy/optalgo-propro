@@ -5,7 +5,6 @@ concrete implementation for the box-rectangle problem given.
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-import sys
 from random import choice
 from itertools import combinations
 from dataclasses import dataclass
@@ -16,6 +15,7 @@ from geometry import Rectangle, Box
 class Score:
   '''
   Represents the score of a solution.
+  `None` as a box count will indicate an invalid solution.
   '''
   box_count: int
   incident_edges: int
@@ -27,8 +27,19 @@ class Score:
     return f"Score({self.box_count=}, {self.incident_edges=})"
 
   def __lt__(self, other: Score):
-    #TODO: tweak this to make it more efficient
-    return self.box_count < other.box_count or self.incident_edges > other.incident_edges
+    match (self.box_count, other.box_count):
+      # Both solutions are invalid, don't care about ordering
+      case (None, None): return True
+      # Self is valid, other is invalid
+      case (_, None): return True
+      # Self is invalid, other is valid
+      case (None, _): return False
+      # Both are valid, self has less boxes than other
+      case (sc, oc) if sc < oc: return True
+      # Both are valid, self has more boxes than other
+      case (sc, oc) if sc > oc: return False
+      # Both are valid, both have the same boxes
+      case (sc, oc) if sc == oc: return self.incident_edges > other.incident_edges
 
   def __eq__(self, other: Score):
     return self.box_count == other.box_count and self.incident_edges == other.incident_edges
@@ -105,31 +116,31 @@ class BoxSolution(Solution):
     s += '\n'.join([str(box) for box in self.boxes.values()])
     return s
 
-  # TODO: this is GeometricMove specific.. should this stay here?
-  def is_valid_move(self, move) -> bool:
-    '''
-    Checks whether a move of a rectangle to a new box and coordinates is valid
-    '''
-    # Get old box, new box and rect
-    from_box = self.boxes[move.from_box_id]
-    to_box = self.boxes[move.to_box_id]
-    rect = from_box.rects[move.rect_id].copy()
+  # TODO: Covered by get_score() now
+  # def is_valid_move(self, move) -> bool:
+  #   '''
+  #   Checks whether a move of a rectangle to a new box and coordinates is valid
+  #   '''
+  #   # Get old box, new box and rect
+  #   from_box = self.boxes[move.from_box_id]
+  #   to_box = self.boxes[move.to_box_id]
+  #   rect = from_box.rects[move.rect_id].copy()
 
-    if move.flip:
-      rect.flip()
-    rect.move_to(move.new_x, move.new_y)
+  #   if move.flip:
+  #     rect.flip()
+  #   rect.move_to(move.new_x, move.new_y)
 
-    # Check if the rect would overflow to the right/bottom
-    if move.new_x + rect.width > self.side_length:
-      return False
-    if move.new_y + rect.height > self.side_length:
-      return False
+  #   # Check if the rect would overflow to the right/bottom
+  #   if move.new_x + rect.width > self.side_length:
+  #     return False
+  #   if move.new_y + rect.height > self.side_length:
+  #     return False
 
-    # Check if the rect would overlap with any other rect in the new box
-    for other_rect in to_box.rects.values():
-      if rect.overlaps(other_rect, self.currently_permissible_overlap):
-        return False
-    return True
+  #   # Check if the rect would overlap with any other rect in the new box
+  #   for other_rect in to_box.rects.values():
+  #     if rect.overlaps(other_rect, self.currently_permissible_overlap):
+  #       return False
+  #   return True
 
   def get_potential_score(self, move) -> Score:
     '''
@@ -139,14 +150,17 @@ class BoxSolution(Solution):
     # Perform move
     move.apply_to_solution(self)
 
-    # Count scores
-    box_count = len(self.boxes)
-    incident_edges = self.compute_incident_edge_coordinates()
+    # If move is valid, construct a proper score,
+    # if not, use None to signal invalidity
+    if self.is_valid():
+      score = Score(len(self.boxes), self.compute_incident_edge_coordinates())
+    else:
+      score = Score(None, None)
 
     # Undo the move operation
     move.undo(self)
 
-    return Score(box_count, incident_edges)
+    return score
 
   def compute_incident_edge_coordinates(self) -> int:
     '''number of coordinates that at least 2 rectangles share.'''
@@ -158,10 +172,10 @@ class BoxSolution(Solution):
   def get_score(self) -> Score:
     # Very large number
     if not self.is_valid():
-      return Score(sys.maxsize, -sys.maxsize - 1)
+      return Score(None, None)
 
     # Count non-empty boxes and incident edges between rects as scoring criteria
-    box_counts =  len(self.boxes)
+    box_counts = len(self.boxes)
     incident_edges = self.compute_incident_edge_coordinates()
     return Score(box_counts, incident_edges)
 

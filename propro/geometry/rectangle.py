@@ -48,6 +48,8 @@ class Rectangle:
     self.max_size = max(w, h)
     self.min_size = min(w, h)
     self.id = i
+    self.placeable_edges = set()
+    self.edges = set()
     self.__recompute_coordinates()
     self.__recompute_edges()
 
@@ -121,13 +123,23 @@ class Rectangle:
 
   def __recompute_edges(self):
     # Placeable edges
-    self.placeable_edges = set()
+    self.placeable_edges.clear()
     self.placeable_edges |= self.get_edge("bottom")
     self.placeable_edges |= self.get_edge("right")
     # All edges are these + top and left
-    self.edges = set(self.placeable_edges)
+    self.edges.clear()
+    self.edges |= self.placeable_edges
     self.edges |= self.get_edge("top")
     self.edges |= self.get_edge("left")
+
+  def get_corners(self) -> set[tuple[int, int]]:
+    '''Returns a set of coordinates for each corner of the rectangle'''
+    return set([
+      (self.__x, self.__y),
+      (self.__x, self.__y + self.height),
+      (self.__x + self.width, self.__y),
+      (self.__x + self.width, self.__y + self.height)
+    ])
 
   def get_edges(self) -> set[tuple[int, int]]:
     '''Returns a set of the edge coordinates of the rectangle'''

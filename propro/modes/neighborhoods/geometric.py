@@ -12,8 +12,10 @@ logger = logging.getLogger(__name__)
 class Geometric(Neighborhood):
   '''Implementation for a geometry-based neighborhood'''
 
-  # TODO: will sometimes return 0 neighbors even though visually there should be some?
   # TODO: Add the option to move a rect into a new box? Might be needed for simulated annealing
+
+  # Incident edges will create local minima from which the neighborhood cannot escape
+  # There needs to be a bonus for moving rects from an almost empty box to a crowded one maybe?
   # IDEA: Rects could be fixed to cut down on neighborhood size. Maybe large ones?
 
   @classmethod
@@ -28,7 +30,7 @@ class Geometric(Neighborhood):
 
     # Iterate over all rectangles in all boxes
     for current_box in sorted(solution.boxes.values(), key=lambda box: len(box.rects)):
-      for current_rect in list(current_box.rects.values()):
+      for current_rect in sorted(current_box.rects.values(), key=lambda rect: rect.get_area(), reverse=True):
         # Now iterate over all possible moves! A rect can be placed
         # ... in any box
         for possible_box in solution.boxes.values():
@@ -38,7 +40,12 @@ class Geometric(Neighborhood):
             for is_flipped in [False, True]:
 
               # no move
-              if current_box.id == possible_box.id and current_rect.get_x() == x and current_rect.get_y() == y and not is_flipped:
+              if all([
+                current_box.id == possible_box.id,
+                current_rect.get_x() == x,
+                current_rect.get_y() == y,
+                not is_flipped
+              ]):
                 continue
 
               # no flip if the rect is square
@@ -47,15 +54,11 @@ class Geometric(Neighborhood):
 
               move = GeometricMove(current_rect.id, current_box.id, possible_box.id, x, y, is_flipped)
 
-              # Check if the solution would be valid
-              if not solution.is_valid_move(move):
-                continue
-
-              # calculate the score of the new solution
+              # Calculate the score of the new solution
               score = solution.get_potential_score(move)
 
-              # if the score is worse or equal, skip this move. This evoids bouncing back and forth
-              if current_score <= score:
+              # Skip invalid solutions
+              if score.box_count is None:
                 continue
 
               # add it to the neighbors
@@ -66,9 +69,9 @@ class Geometric(Neighborhood):
                 logger.info("Early returned with %i neighbors. Removed one Box.", len(neighbors))
                 return neighbors
 
-              if len(neighbors) > max(cls.MAX_NEIGHBORS, len(solution.boxes) ** 2):
-                logger.info("Early returned with %i neighbors", len(neighbors))
-                return neighbors
+              # if len(neighbors) > max(cls.MAX_NEIGHBORS, len(solution.boxes) ** 2):
+              #   logger.info("Early returned with %i neighbors", len(neighbors))
+              #   return neighbors
     logger.info("Explored all %i neighbors", len(neighbors))
     return neighbors
 
@@ -116,7 +119,6 @@ class GeometricMove(Move):
     # If the current box is now empty, remove it from the solution
     if len(current_box.rects) == 0:
       solution.boxes.pop(self.from_box_id)
-      logger.debug("Removed box %i", self.from_box_id)
 
   def undo(self, solution: BoxSolution):
     '''Undoes whatever this move had done to the argument solution'''

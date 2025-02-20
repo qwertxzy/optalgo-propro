@@ -41,7 +41,7 @@ class LocalSearch(OptimizationAlgorithm):
 
     logger.info("Found %i neighbors", len(neighbors))
 
-    best_score = min([n.score for n in neighbors])
+    best_score = min(n.score for n in neighbors)
     # Pick one of the best neighbors at random
     best_neighbors = [n.move for n in neighbors if n.score == best_score]
     best_neighbor = random.choice(best_neighbors)

@@ -15,15 +15,15 @@ random.seed(1337)
 
 # Set your values here
 
-RECT_NUMBER = 250
+RECT_NUMBER = 100
 RECT_X = range(10)
 RECT_Y = range(10)
 BOX_LENGTH = 15
 
-NUM_TICKS = 300
+NUM_TICKS = 200
 
-ALGO = GreedySearch
-MODE = BySpaceSelection
+ALGO = LocalSearch
+MODE = Geometric
 
 # Construct basic objects
 
