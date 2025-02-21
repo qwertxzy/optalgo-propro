@@ -103,11 +103,14 @@ class Rectangle:
 
     # If permissible overlap is zero, do strict boundary checks only
     if permissible_overlap == 0.0:
-      # Calculate the intersection area
-      x_overlap = max(0, min(self.__x + self.width, other.get_x() + other.width) - max(self.__x, other.get_x()))
-      y_overlap = max(0, min(self.__y + self.height, other.get_y() + other.height) - max(self.__y, other.get_y()))
-      intersection_area = x_overlap * y_overlap
-      return intersection_area > 0
+      # Check if one rectangle is on the left side of the other
+      if self.get_x() + self.width <= other.get_x() or other.get_x() + other.width <= self.get_x():
+        return False
+      # Check if one rectangle is above the other
+      if self.get_y() + self.height <= other.get_y() or other.get_y() + other.height <= self.get_y():
+        return False
+      # Else they must intersect
+      return True
 
     # If it's not, we need to compute the overlap area of the two rects
     # and compare it against the permissible value
