@@ -58,68 +58,68 @@ class PermutationMove(Move):
     '''
     boxes = [Box(0, box_length)]
 
-    # Below was a cool idea for better placement, but makes it about 20x slower..
-    # for rect in rects:
-    #   rect_placed = False
-    #   # Try to fit it in every box
-    #   for box in boxes:
-    #     # If it was placed already break box iteration, we've found its home
-    #     if rect_placed:
-    #       break
-
-    #     # Iterate over every possible origin
-    #     for origin in product(range(box_length - rect.width), range(box_length - rect.height)):
-    #       rect.move_to(*origin)
-
-    #       # Place if it fits
-    #       if rect.get_all_coordinates() <= box.get_free_coordinates():
-    #         box.add_rect(rect)
-    #         rect_placed = True
-    #         break
-
-    #   # If none fit, create a new one and put it at 0/0
-    #   if not rect_placed:
-    #     rect.move_to(0, 0)
-    #     new_box = Box(len(boxes), box_length, rect)
-    #     boxes.append(new_box)
-
-    # Take rects one by one and put them into a new box..
-    # Once one boundary is crossed, start with a new box
-    boxes = [Box(0, box_length)]
-    current_box = boxes[0]
-    current_y = 0 # Current row's y index
-    next_x = 0 # Next x coordinate for a box
-    next_y = 0 # Next y index for a row
-    # Go through rects until all have been processed
     for rect in rects:
-      # Case 1: Rect fits into this row
-      if next_x + rect.width <= box_length and next_y + rect.height <= box_length:
-        # Update this rect's coordinates
-        rect.move_to(next_x, current_y)
-        current_box.add_rect(rect)
-        # Also update the next corodinate
-        next_x += rect.width
-        next_y = max(next_y, current_y + rect.height)
-        continue
-      #  Case 2: Rects overflows to the right, but fits into a next row within this box
-      if next_x + rect.width > box_length and next_y + rect.height <= box_length:
-        # NOTE: By specification this must fit here, box_length is guaranteed to be larger than any rect side
-        rect.move_to(0, next_y)
-        current_box.add_rect(rect)
-        # Update coordinates for the next box
-        next_x = rect.width
-        current_y = next_y
-        next_y = current_y + rect.height
-        continue
-      # Case 3: Rect does not fit into this box, create a new one and push it to boxes
-      current_box = Box(len(boxes), box_length)
-      rect.move_to(0, 0)
-      current_box.add_rect(rect)
-      boxes.append(current_box)
-      # And set the next coordinates again
-      next_x = rect.width
-      current_y = 0
-      next_y = rect.height
+      rect_placed = False
+      # Try to fit it in every box
+      for box in boxes:
+        # If it was placed already break box iteration, we've found its home
+        if rect_placed:
+          break
+
+        # Iterate over every possible origin
+        for origin in box.get_adjacent_coordinates():
+          rect.move_to(*origin)
+
+          # Place if it fits
+          if rect.get_all_coordinates() <= box.get_free_coordinates():
+            box.add_rect(rect)
+            rect_placed = True
+            break
+
+      # If none fit, create a new one and put it at 0/0
+      if not rect_placed:
+        rect.move_to(0, 0)
+        new_box = Box(len(boxes), box_length, rect)
+        boxes.append(new_box)
+
+    # Legacy placement strategy, is faster but quality is significantly worse
+    # # Take rects one by one and put them into a new box..
+    # # Once one boundary is crossed, start with a new box
+    # boxes = [Box(0, box_length)]
+    # current_box = boxes[0]
+    # current_y = 0 # Current row's y index
+    # next_x = 0 # Next x coordinate for a box
+    # next_y = 0 # Next y index for a row
+    # # Go through rects until all have been processed
+    # for rect in rects:
+    #   # Case 1: Rect fits into this row
+    #   if next_x + rect.width <= box_length and next_y + rect.height <= box_length:
+    #     # Update this rect's coordinates
+    #     rect.move_to(next_x, current_y)
+    #     current_box.add_rect(rect)
+    #     # Also update the next corodinate
+    #     next_x += rect.width
+    #     next_y = max(next_y, current_y + rect.height)
+    #     continue
+    #   #  Case 2: Rects overflows to the right, but fits into a next row within this box
+    #   if next_x + rect.width > box_length and next_y + rect.height <= box_length:
+    #     # NOTE: By specification this must fit here, box_length is guaranteed to be larger than any rect side
+    #     rect.move_to(0, next_y)
+    #     current_box.add_rect(rect)
+    #     # Update coordinates for the next box
+    #     next_x = rect.width
+    #     current_y = next_y
+    #     next_y = current_y + rect.height
+    #     continue
+    #   # Case 3: Rect does not fit into this box, create a new one and push it to boxes
+    #   current_box = Box(len(boxes), box_length)
+    #   rect.move_to(0, 0)
+    #   current_box.add_rect(rect)
+    #   boxes.append(current_box)
+    #   # And set the next coordinates again
+    #   next_x = rect.width
+    #   current_y = 0
+    #   next_y = rect.height
 
     # return list of constructed boxes
     return boxes

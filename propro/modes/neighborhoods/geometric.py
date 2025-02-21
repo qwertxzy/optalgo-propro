@@ -16,7 +16,8 @@ class Geometric(Neighborhood):
 
   # Incident edges will create local minima from which the neighborhood cannot escape
   # There needs to be a bonus for moving rects from an almost empty box to a crowded one maybe?
-  # IDEA: Rects could be fixed to cut down on neighborhood size. Maybe large ones?
+  # IDEA: Introduce a sort of box entropy to the score, would need to count empty boxes too
+  # IDEA: Rects could be fixed to cut down on neighborhood size. Maybe large ones? All rects of a box when there are 0 free coords
 
   @classmethod
   def get_neighbors(cls, solution: BoxSolution) -> list[ScoredMove]:
@@ -30,6 +31,8 @@ class Geometric(Neighborhood):
 
     # Iterate over all rectangles in all boxes
     for current_box in sorted(solution.boxes.values(), key=lambda box: len(box.rects)):
+      # TODO: switch from desc to asc sorting at some point (after the initial early-return phase?)
+      # IDEA: Prioritize rects on generating valid moves?
       for current_rect in sorted(current_box.rects.values(), key=lambda rect: rect.get_area(), reverse=True):
         # Now iterate over all possible moves! A rect can be placed
         # ... in any box
@@ -69,9 +72,9 @@ class Geometric(Neighborhood):
                 logger.info("Early returned with %i neighbors. Removed one Box.", len(neighbors))
                 return neighbors
 
-              # if len(neighbors) > max(cls.MAX_NEIGHBORS, len(solution.boxes) ** 2):
-              #   logger.info("Early returned with %i neighbors", len(neighbors))
-              #   return neighbors
+              if len(neighbors) > max(cls.MAX_NEIGHBORS, len(solution.boxes) ** 2):
+                logger.info("Early returned with %i neighbors", len(neighbors))
+                return neighbors
     logger.info("Explored all %i neighbors", len(neighbors))
     return neighbors
 

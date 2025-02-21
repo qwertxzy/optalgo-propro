@@ -34,7 +34,7 @@ class Box:
     '''
     self.id = b_id
     self.side_length = side_length
-    self.rects = dict()
+    self.rects = {}
     self.free_coords = set(product(range(side_length), range(side_length)))
     self.unused_area = set(product(range(side_length), range(side_length)))
     self.unused_area_dirty = False
@@ -50,9 +50,12 @@ class Box:
     # Add rect to internal dict
     self.rects[rect.id] = rect
     # Update free coordinate set
-    # TODO: might need to exclude the coordinates on the edges.
     self.free_coords = self.free_coords - rect.get_all_coordinates()
-    # Set the dirty flag
+    # Update adjacent coordinate set
+    self.adjacent_coordinates ^= rect.get_edges()
+    self.adjacent_coordinates |= rect.get_corners()
+
+    # Set the dirty flag for incident edge stats
     self.dirty = True
     self.needs_redraw = True
 
@@ -60,6 +63,10 @@ class Box:
     '''Removes a rectangle from this box.'''
     # Set coordinates as free again
     self.free_coords = self.free_coords | self.rects[rect_id].get_all_coordinates()
+
+    # Update adjacent coordinate set
+    self.adjacent_coordinates ^= self.rects[rect_id].get_edges()
+
     self.dirty = True
     self.needs_redraw = True
     # Remove rect from internal dict
@@ -81,8 +88,6 @@ class Box:
     '''
     Returns all coordinates adjacent to the rectangles in this box.
     '''
-    if self.dirty:
-      self.recalculate_stats()
     return self.adjacent_coordinates
 
   def get_incident_edge_count(self) -> int:

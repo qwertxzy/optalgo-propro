@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from random import choice
 from itertools import combinations
 from dataclasses import dataclass
+from math import log2
 
 from geometry import Rectangle, Box
 
@@ -18,15 +19,21 @@ class Score:
   `None` as a box count will indicate an invalid solution.
   '''
   box_count: int
+  '''Number of overall boxes in this solution. Lower is better.'''
+  # Was planned as 'gain' but that can only work on a move, not on a solution
+  box_entropy: int
+  '''Measure of how distributed rects are among boxes. Lower is better.'''
   incident_edges: int
+  '''Number of coordinates shared by two adjacent rects. Higher is better.'''
 
   def __iter__(self):
-    return iter((self.box_count, self.incident_edges))
+    return iter((self.box_count, self.box_entropy, self.incident_edges))
 
   def __repr__(self):
-    return f"Score({self.box_count=}, {self.incident_edges=})"
+    return f"Score({self.box_count=}, {self.box_entropy=}, {self.incident_edges=})"
 
   def __lt__(self, other: Score):
+    # First level: match on overall box count
     match (self.box_count, other.box_count):
       # Both solutions are invalid, don't care about ordering
       case (None, None): return True
@@ -39,10 +46,22 @@ class Score:
       # Both are valid, self has more boxes than other
       case (sc, oc) if sc > oc: return False
       # Both are valid, both have the same boxes
-      case (sc, oc) if sc == oc: return self.incident_edges > other.incident_edges
+      case (sc, oc) if sc == oc:
+        # Second level: Match on box gain
+        match (self.box_entropy, other.box_entropy):
+          # Self has a smaller box entropy -> it is smaller
+          case (se, oe) if se < oe: return True
+          # Self has a larger box entropy -> it is larger
+          case (se, oe) if se > oe: return False
+          # Box entropy are the same -> Decide on incident edges
+          case (se, oe) if se == oe: return self.incident_edges > other.incident_edges
 
   def __eq__(self, other: Score):
-    return self.box_count == other.box_count and self.incident_edges == other.incident_edges
+    return all([
+      self.box_count == other.box_count,
+      self.box_entropy == other.box_entropy,
+      self.incident_edges == other.incident_edges
+    ])
 
   def __le__(self, other: Score):
     return self < other or self == other
@@ -106,7 +125,7 @@ class BoxSolution(Solution):
     '''
     self.currently_permissible_overlap = 0.0
     self.side_length = side_length
-    self.boxes = dict()
+    self.boxes = {}
     for box in box_list:
       self.boxes[box.id] = box
 
@@ -153,9 +172,9 @@ class BoxSolution(Solution):
     # If move is valid, construct a proper score,
     # if not, use None to signal invalidity
     if self.is_valid():
-      score = Score(len(self.boxes), self.compute_incident_edge_coordinates())
+      score = Score(len(self.boxes), self.compute_box_entropy(), self.compute_incident_edge_coordinates())
     else:
-      score = Score(None, None)
+      score = Score(None, None, None)
 
     # Undo the move operation
     move.undo(self)
@@ -169,15 +188,24 @@ class BoxSolution(Solution):
       edges += box.get_incident_edge_count()
     return edges
 
-  def get_score(self) -> Score:
-    # Very large number
-    if not self.is_valid():
-      return Score(None, None)
+  def compute_box_entropy(self) -> float:
+    '''Computes the entropy of all boxes with regard to their rect count'''
+    rect_counts = [len(b.rects) for b in self.boxes.values()]
+    total_rects = sum(rect_counts)
+    probabilities = [count / total_rects for count in rect_counts]
+    entropy = -sum(p * log2(p) if p > 0 else 0.0 for p in probabilities)
+    return entropy
 
-    # Count non-empty boxes and incident edges between rects as scoring criteria
+  # TODO: don't re-calculate this every time
+  def get_score(self) -> Score:
+    if not self.is_valid():
+      return Score(None, None, None)
+
+    # Calculate all aspects of a score
     box_counts = len(self.boxes)
+    box_entropy = self.compute_box_entropy()
     incident_edges = self.compute_incident_edge_coordinates()
-    return Score(box_counts, incident_edges)
+    return Score(box_counts, box_entropy, incident_edges)
 
   def is_valid(self):
     # Go over all rects in all boxes

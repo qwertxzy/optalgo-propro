@@ -34,7 +34,7 @@ class Rectangle:
   # '''The rectangles this regtangle overlaps with.
   # Maps rectangle id to rectangle object'''
 
-  adjacents: dict[int, Rectangle] = dict()
+  adjacents: dict[int, Rectangle] = {}
   '''
   The rectangles this rectangle is adjacent to. No overlap, but touching.
   Maps rectangle id to rectangle object
