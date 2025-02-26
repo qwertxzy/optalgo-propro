@@ -16,7 +16,6 @@ class Geometric(Neighborhood):
 
   # Incident edges will create local minima from which the neighborhood cannot escape
   # There needs to be a bonus for moving rects from an almost empty box to a crowded one maybe?
-  # IDEA: Introduce a sort of box entropy to the score, would need to count empty boxes too
   # IDEA: Rects could be fixed to cut down on neighborhood size. Maybe large ones? All rects of a box when there are 0 free coords
 
   @classmethod
@@ -42,7 +41,7 @@ class Geometric(Neighborhood):
             # ... at any rotation
             for is_flipped in [False, True]:
 
-              # no move
+              # No move
               if all([
                 current_box.id == possible_box.id,
                 current_rect.get_x() == x,
@@ -51,7 +50,7 @@ class Geometric(Neighborhood):
               ]):
                 continue
 
-              # no flip if the rect is square
+              # No flip if the rect is square
               if current_rect.width == current_rect.height and is_flipped:
                 continue
 
@@ -72,9 +71,10 @@ class Geometric(Neighborhood):
                 logger.info("Early returned with %i neighbors. Removed one Box.", len(neighbors))
                 return neighbors
 
-              if len(neighbors) > max(cls.MAX_NEIGHBORS, len(solution.boxes) ** 2):
-                logger.info("Early returned with %i neighbors", len(neighbors))
-                return neighbors
+              # Leads to plateaus in the solution space we cannot escape otherwise
+              # if len(neighbors) > max(cls.MAX_NEIGHBORS, len(solution.boxes) ** 2):
+              #   logger.info("Early returned with %i neighbors", len(neighbors))
+              #   return neighbors
     logger.info("Explored all %i neighbors", len(neighbors))
     return neighbors
 
@@ -101,8 +101,12 @@ class GeometricMove(Move):
     self.old_x = None
     self.old_y = None
 
-  def apply_to_solution(self, solution: BoxSolution):
-    '''Applies this move to a given box solution'''
+  def apply_to_solution(self, solution: BoxSolution) -> bool:
+    '''
+    Tries to apply this move to a given box solution.
+    Will return false if resulting solution is invalid.
+    '''
+
     # Get rect in old box
     current_box = solution.boxes[self.from_box_id]
     current_rect = current_box.remove_rect(self.rect_id)
@@ -117,11 +121,22 @@ class GeometricMove(Move):
       current_rect.flip()
 
     new_box = solution.boxes[self.to_box_id]
-    new_box.add_rect(current_rect)
+    move_success = new_box.add_rect(current_rect)
+
+    if not move_success:
+      # Revert rect coordinates
+      current_rect.move_to(self.old_x, self.old_y)
+      if self.flip:
+        current_rect.flip()
+      # Add it back where it came from and return
+      current_box.add_rect(current_rect)
+      return False
 
     # If the current box is now empty, remove it from the solution
     if len(current_box.rects) == 0:
       solution.boxes.pop(self.from_box_id)
+
+    return True
 
   def undo(self, solution: BoxSolution):
     '''Undoes whatever this move had done to the argument solution'''

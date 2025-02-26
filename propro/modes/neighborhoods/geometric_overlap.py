@@ -65,8 +65,8 @@ class GeometricOverlap(Neighborhood):
                 logger.info("Early returned with %i neighbors. Removed one Box.", len(neighbors))
                 return neighbors
 
-              if len(neighbors) > cls.MAX_NEIGHBORS:
-                logger.info("Early returned with %i neighbors", len(neighbors))
-                return neighbors
+              # if len(neighbors) > cls.MAX_NEIGHBORS:
+              #   logger.info("Early returned with %i neighbors", len(neighbors))
+              #   return neighbors
     logger.info("Explored all %i neighbors", len(neighbors))
     return neighbors

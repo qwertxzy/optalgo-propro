@@ -237,7 +237,7 @@ class Rectangle:
 
   # NOTE: Tried an alternative move_by method for relative offset, but it ended up being slower
   def move_to(self, new_x: int, new_y: int):
-    '''Will move the rect to a new origin. Expensive, consider using move_by() instead'''
+    '''Will move the rect to a new origin.'''
     self.__x = new_x
     self.__y = new_y
     self.__recompute_coordinates()

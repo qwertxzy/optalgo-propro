@@ -11,7 +11,7 @@ class Neighborhood(ABC):
 
   neighbors = []
 
-  MAX_NEIGHBORS = 250
+  # MAX_NEIGHBORS = 250
 
   @classmethod
   @abstractmethod

@@ -9,6 +9,7 @@ from algorithms import *
 from modes import *
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Fix rng seed to make runs comparable
 random.seed(1337)
@@ -16,11 +17,11 @@ random.seed(1337)
 # Set your values here
 
 RECT_NUMBER = 100
-RECT_X = range(10)
-RECT_Y = range(10)
+RECT_X = range(1, 16)
+RECT_Y = range(1, 16)
 BOX_LENGTH = 15
 
-NUM_TICKS = 200
+NUM_TICKS = 90
 
 ALGO = LocalSearch
 MODE = Geometric
@@ -36,7 +37,8 @@ pr = cProfile.Profile()
 pr.enable()
 
 try:
-  for _ in range(NUM_TICKS):
+  for i in range(NUM_TICKS):
+    logger.info("Iteration %i", i)
     my_algo.tick()
 except KeyboardInterrupt:
   pass

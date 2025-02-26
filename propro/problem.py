@@ -164,17 +164,16 @@ class BoxSolution(Solution):
   def get_potential_score(self, move) -> Score:
     '''
     Calculates the potential score of the solution after a given move.
-    Assumes validity of the move.
     '''
     # Perform move
-    move.apply_to_solution(self)
+    move_sucessful = move.apply_to_solution(self)
+
+    # If move was unsuccessful, it resulted in an invalid solution
+    if not move_sucessful:
+      return Score(None, None, None)
 
     # If move is valid, construct a proper score,
-    # if not, use None to signal invalidity
-    if self.is_valid():
-      score = Score(len(self.boxes), self.compute_box_entropy(), self.compute_incident_edge_coordinates())
-    else:
-      score = Score(None, None, None)
+    score = Score(len(self.boxes), self.compute_box_entropy(), self.compute_incident_edge_coordinates())
 
     # Undo the move operation
     move.undo(self)
@@ -192,6 +191,8 @@ class BoxSolution(Solution):
     '''Computes the entropy of all boxes with regard to their rect count'''
     rect_counts = [len(b.rects) for b in self.boxes.values()]
     total_rects = sum(rect_counts)
+    if total_rects == 0:
+      return 0.0
     probabilities = [count / total_rects for count in rect_counts]
     entropy = -sum(p * log2(p) if p > 0 else 0.0 for p in probabilities)
     return entropy

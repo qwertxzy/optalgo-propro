@@ -45,13 +45,16 @@ class LocalSearch(OptimizationAlgorithm):
     # Pick one of the best neighbors at random
     best_neighbors = [n.move for n in neighbors if n.score == best_score]
     best_neighbor = random.choice(best_neighbors)
+
     # Actually apply the move
     best_neighbor.apply_to_solution(self.problem.current_solution)
 
+
     # TODO: also not really something that should be handled in the search algorithm?
     # Adjust permissible overlap
-    current_overlap = self.problem.current_solution.currently_permissible_overlap
-    new_overlap = max (0, current_overlap - 1  / self.problem.current_solution.get_score().box_count)
-    self.problem.current_solution.currently_permissible_overlap = new_overlap
+    if self.strategy == GeometricOverlap:
+      current_overlap = self.problem.current_solution.currently_permissible_overlap
+      new_overlap = max(0, current_overlap - 1  / self.problem.current_solution.get_score().box_count)
+      self.problem.current_solution.currently_permissible_overlap = new_overlap
 
     logger.info("Now at score %s", self.problem.current_solution.get_score())

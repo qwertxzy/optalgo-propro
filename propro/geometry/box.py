@@ -1,7 +1,10 @@
+import logging
 from collections import Counter
 from itertools import product
 
 from .rectangle import Rectangle
+
+logger = logging.getLogger(__name__)
 
 class Box:
   '''
@@ -10,7 +13,7 @@ class Box:
   rects: dict[int, Rectangle]
   '''The rectangles currently in this box. Maps rectangle id to rectangle object.'''
   id: int
-  '''ID of this rectangle'''
+  '''ID of this box'''
   incident_edge_count: int
   '''number of coordinates that at least 2 rectangles in this box share.'''
   free_coords: set[tuple[int, int]]
@@ -36,8 +39,6 @@ class Box:
     self.side_length = side_length
     self.rects = {}
     self.free_coords = set(product(range(side_length), range(side_length)))
-    self.unused_area = set(product(range(side_length), range(side_length)))
-    self.unused_area_dirty = False
     self.incident_edge_count = 0
     self.adjacent_coordinates = set()
     self.dirty = True
@@ -45,8 +46,12 @@ class Box:
     for rect in rects:
       self.add_rect(rect)
 
-  def add_rect(self, rect: Rectangle):
-    '''Places a rectangle within this box.'''
+  def add_rect(self, rect: Rectangle) -> bool:
+    '''Tries to place a rectangle within this box. Will return false if unsuccessful.'''
+    # If rects coordinates are not part of free cords, this won't fit
+    if not rect.get_all_coordinates() <= self.free_coords:
+      return False
+
     # Add rect to internal dict
     self.rects[rect.id] = rect
     # Update free coordinate set
@@ -58,6 +63,7 @@ class Box:
     # Set the dirty flag for incident edge stats
     self.dirty = True
     self.needs_redraw = True
+    return True
 
   def remove_rect(self, rect_id: int) -> Rectangle:
     '''Removes a rectangle from this box.'''
