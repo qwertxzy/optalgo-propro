@@ -1,144 +1,89 @@
 import logging
-from collections import Counter
-from itertools import product
 
-from .rectangle import Rectangle
+import numpy as np
+import numba
+
+from .rectangle import get_edge_coordinates
 
 logger = logging.getLogger(__name__)
 
-class Box:
+@numba.njit
+def compute_box_incident_edges(box: np.ndarray, side_length: int) -> int:
   '''
-  One box of the box-rect problem.
+  Computes the number of adjacent edge coordinates of the rectangles in this box.
+  A box in this case is just a list of rectangles with the same value at index 4.
   '''
-  rects: dict[int, Rectangle]
-  '''The rectangles currently in this box. Maps rectangle id to rectangle object.'''
-  id: int
-  '''ID of this box'''
-  incident_edge_count: int
-  '''number of coordinates that at least 2 rectangles in this box share.'''
-  free_coords: set[tuple[int, int]]
-  '''All free coordinates in this box. These are coordinates used for search space exploration.'''
-  adjacent_coordinates: set[tuple[int, int]]
-  '''All coordinates adjacent to the rectangles in this box.'''
-  dirty: bool = True
-  '''Flag to indicate that the adjacent coordinates need to be recalculated.'''
+  edge_counts = {}
+  border_count = 0
 
-  needs_redraw: bool
-  '''Signifies the drawing method that this box has changed and needs to be redrawn'''
+  for rect in box:
+    x, y, w, h, _ = rect
 
-  def __repr__(self):
-    s = f"{self.id}: "
-    s += ' '.join([str(r) for r in self.rects.values()])
-    return s
+    # Count box border incidents
+    if x == 0 or x + w == side_length:
+      border_count += h
+    if y == 0 or y + h == side_length:
+      border_count += w
 
-  def __init__(self, b_id: int, side_length: int, *rects: Rectangle):
-    '''
-    Initializes a new box with a number of rects
-    '''
-    self.id = b_id
-    self.side_length = side_length
-    self.rects = {}
-    self.free_coords = set(product(range(side_length), range(side_length)))
-    self.incident_edge_count = 0
-    self.adjacent_coordinates = set()
-    self.dirty = True
-    self.needs_redraw = True
-    for rect in rects:
-      self.add_rect(rect)
+    # Add edges to counter
+    edges = get_edge_coordinates(rect)
+    for edge in edges:
+      if edge in edge_counts:
+        edge_counts[edge] += 1
+      else:
+        edge_counts[edge] = 1
 
-  def add_rect(self, rect: Rectangle) -> bool:
-    '''Tries to place a rectangle within this box. Will return false if unsuccessful.'''
-    # If rects coordinates are not part of free cords, this won't fit
-    if not rect.get_all_coordinates() <= self.free_coords:
-      return False
+    # Count edges with more than 1 rect
+    duplicate_count = 0
+    for count in edge_counts.values():
+      if count > 1:
+        duplicate_count += 1
 
-    # Add rect to internal dict
-    self.rects[rect.id] = rect
-    # Update free coordinate set
-    self.free_coords = self.free_coords - rect.get_all_coordinates()
-    # Update adjacent coordinate set
-    self.adjacent_coordinates ^= rect.get_edges()
-    self.adjacent_coordinates |= rect.get_corners()
+  return border_count + duplicate_count
 
-    # Set the dirty flag for incident edge stats
-    self.dirty = True
-    self.needs_redraw = True
-    return True
+def compute_box_adjacent_coordinates(box: np.ndarray, side_length: int) -> set[tuple[int, int]]:
+  '''
+  Computes coordinates adjacent to the rectangles in this box
+  '''
+  # Init box coordinates as empty array
+  box_coordinates = np.zeros((side_length + 10, side_length + 10), dtype=bool)
 
-  def remove_rect(self, rect_id: int) -> Rectangle:
-    '''Removes a rectangle from this box.'''
-    # Set coordinates as free again
-    self.free_coords = self.free_coords | self.rects[rect_id].get_all_coordinates()
+  # Add top & left edge of box
+  box_coordinates[0:side_length, 0] = True
+  box_coordinates[0, 0:side_length] = True
 
-    # Update adjacent coordinate set
-    self.adjacent_coordinates ^= self.rects[rect_id].get_edges()
+  # Loop over all rects and mark edges
+  for rect in box:
+    x, y, w , h, _ = rect
 
-    self.dirty = True
-    self.needs_redraw = True
-    # Remove rect from internal dict
-    return self.rects.pop(rect_id)
+    # Toggle horizontal edges
+    box_coordinates[x:x+w, y] ^= True
+    box_coordinates[x:x+w, y+h] ^= True
+    # Toggle vertical edges
+    box_coordinates[x, y:y+h] ^= True
+    box_coordinates[x+w, y:y+h] ^= True
 
-  def get_free_coordinates(self) -> set[tuple[int, int]]:
-    '''Returns all currently free x/y coordinates in this box.'''
-    return self.free_coords
+  # Loop over rects *again* for corners
+  for rect in box:
+    x, y, w , h, _ = rect
+    # Always mark rect corners
+    box_coordinates[x, y] = True
+    box_coordinates[x+w, y] = True
+    box_coordinates[x+w, y+h] = True
+    box_coordinates[x, y+h] = True
 
-  def recalculate_stats(self):
-    '''
-    Recalculates the statistics of this box.
-    '''
-    self.__recalculate_adjacent_coordinates()
-    self.__recalculate_incident_edge_count()
-    self.dirty = False
+  # Return bools into set of tuples
+  return { tuple(coord) for coord in np.argwhere(box_coordinates) }
 
-  def get_adjacent_coordinates(self) -> set[tuple[int, int]]:
-    '''
-    Returns all coordinates adjacent to the rectangles in this box.
-    '''
-    return self.adjacent_coordinates
+@numba.jit
+def compute_box_coordinates(rectangles: np.ndarray, side_length: int) -> np.ndarray:
+  '''
+  Will take the given rectangles and return an array of shape side_length x side_length
+  with `1` where a rect is placed and `0` where there is free space
+  '''
+  box_coordinates = np.zeros((side_length, side_length))
 
-  def get_incident_edge_count(self) -> int:
-    '''
-    Returns the number of coordinates that at least 2 rectangles in this box share.
-    '''
-    if self.dirty:
-      self.recalculate_stats()
-    return self.incident_edge_count
-
-  def __recalculate_adjacent_coordinates(self):
-    '''
-    Recalculates the coordinates adjacent to the rectangles in this box.
-    '''
-    # Clear the set
-    self.adjacent_coordinates.clear()
-
-    # Add the left and top edge of the box
-    self.adjacent_coordinates |= set(product(range(self.side_length + 1), [0]))
-    self.adjacent_coordinates |= set(product([0], range(self.side_length + 1)))
-
-    # Xor each rects edges to the box set, will remove covered edges between two rects
-    for rect in self.rects.values():
-      self.adjacent_coordinates ^= rect.get_edges()
-    # ..but that would falsely remove corners where 3 or 4 can intersect, so add these back
-    # NOTE: Will have to go over all rects again,
-    #       but we could probably also live without these 4 points if speed-up is nessecary?
-    for rect in self.rects.values():
-      self.adjacent_coordinates |= rect.get_corners()
-
-  def __recalculate_incident_edge_count(self):
-    '''
-    Recalculates the number of adjacent edge coordinates of the rectangles in this box.
-    '''
-    self.incident_edge_count = 0
-
-    # Count edge coordinate occurrences in a map of (coordinate -> count)
-    edge_count = Counter()
-    for rect in self.rects.values():
-      edge_count.update(rect.get_edges())
-      # While we're at it, also count edges of rects that lie on the box border
-      if rect.get_x() == 0 or rect.get_x() + rect.width == self.side_length:
-        self.incident_edge_count += rect.height
-      if rect.get_y() == 0 or rect.get_y() + rect.height == self.side_length:
-        self.incident_edge_count += rect.width
-
-    # Add all edges that are incident to more than one rectangle (have a count > 1)
-    self.incident_edge_count += sum(1 for e in edge_count.values() if e > 1)
+  for rect in rectangles:
+    x, y, w, h, _ = rect
+    box_coordinates[x:x+w, y:y+h] = 1
+  return box_coordinates

@@ -12,7 +12,7 @@ from rich.table import Table
 from rich.console import Console
 
 from algorithms import OptimizationAlgorithm
-from modes import get_available_modes
+from modes import get_available_modes, GeometricOverlap
 from problem import BoxProblem
 
 # TODO: Assignment calls for several runs to be executed in one call, is this important?
@@ -81,6 +81,9 @@ results = []
 for Algorithm in OptimizationAlgorithm.__subclasses__():
   # Loop over every mode for this algorithm
   for Mode in get_available_modes(Algorithm):
+
+    if Mode == GeometricOverlap:
+      continue
 
     # Initialize problem
     optimization_problem = BoxProblem(

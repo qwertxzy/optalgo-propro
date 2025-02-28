@@ -1,144 +1,92 @@
 import logging
-from dataclasses import dataclass
+from itertools import product
 
-from geometry import Box, Rectangle
-from utils import flatten
+import numpy as np
+from numpy.lib.stride_tricks import sliding_window_view
+
 from problem import BoxSolution
 from .neighborhood import Neighborhood
-from ..move import ScoredMove, Move
 
 logger = logging.getLogger(__name__)
 
 class Permutation(Neighborhood):
   '''Implementation for a permutation-based neighborhood'''
 
-  @classmethod
-  def get_neighbors(cls, solution: BoxSolution) -> list[ScoredMove]:
+  @staticmethod
+  def reconstruct_boxes(box_length: int, rectangles: np.ndarray) -> np.ndarray:
     '''
-    Encodes the solution into a long list of rects that get placed from top left-to bottom-right
-    in each box. Then computes permutations of this list and turns them back to solutions.
+    Goes over all rectangles in-order and fixes coordinates and box ids
+    such that no two rectangles are overlapping
+    '''
+    # Keep a list of boxes with 0 and 1 values for each coordinate
+    box_coordinates = [np.zeros((box_length, box_length))]
+
+    # Go over all rects
+    for rect in rectangles:
+      # Try to fit it in each box
+      for box_idx, box in enumerate(box_coordinates):
+        _, _, w, h, _ = rect
+        rect_placed = False
+        # Construct sliding window
+        window = sliding_window_view(box, (w, h))
+        # Slide window over coordinates and check if we find a spot of all 0s
+        for (x, y) in product(range(window.shape[0]), range(window.shape[1])):
+          if np.all(window[x, y, ...] == 0):
+            # Found it!
+            rect_placed = True
+            # Set rect values
+            rect[0:2] = x, y
+            rect[4] = box_idx
+            # Add rect coordinates to the box
+            box[x:x+w, y:y+h] = 1
+            break
+        if rect_placed:
+          break
+      # If none fit, put it in a new one
+      else:
+        # Set rect values
+        rect[0:2] = 0
+        rect[4] = len(box_coordinates)
+        # Set box coordinates
+        new_box = np.zeros((box_length, box_length))
+        new_box[0:rect[2], 0:rect[3]] = 1
+        box_coordinates.append(new_box)
+
+    # Return modified rectangles
+    return rectangles
+
+  @classmethod
+  def get_neighbors(cls, solution: BoxSolution) -> list[BoxSolution]:
+    '''
+    Ignores the box_id of a given solution and permutates the order of rectangles.
+    Will then re-create boxes, placing them one by one.
     '''
     logger.info("Claculating Permutation neighborhood")
 
     neighbors = []
 
     # Do every possible pairwise swap
-    num_rects = sum(map(lambda b: len(b.rects), solution.boxes.values()))
-    for i in range(num_rects - 1):
-      move = PermutationMove(i, i + 1, False)
-      score = solution.get_potential_score(move)
-      neighbors.append(ScoredMove(move, score))
+    for i in range(len(solution.rectangles) - 1):
+      neighbor = np.copy(solution.rectangles)
+
+      neighbor[[i, i + 1]] = neighbor[[i + 1, i]]
+      neighbor_solution = BoxSolution(
+        solution.side_length,
+        Permutation.reconstruct_boxes(solution.side_length, neighbor)
+      )
+      if neighbor_solution.get_score().box_count is not None:
+        neighbors.append(neighbor_solution)
 
     # Also flip every possible rect
-    for i in range(num_rects):
-      move = PermutationMove(i, i, True)
-      score = solution.get_potential_score(move)
-      neighbors.append(ScoredMove(move, score))
+    for i in range(len(solution.rectangles)):
+      neighbor = np.copy(solution.rectangles)
+      rect = neighbor[i]
+      rect[[2, 3]] = rect[[3, 2]]
+      neighbor_solution = BoxSolution(
+        solution.side_length,
+        Permutation.reconstruct_boxes(solution.side_length, neighbor)
+      )
+      if neighbor_solution.get_score().box_count is not None:
+        neighbors.append(neighbor_solution)
 
     return neighbors
-
-@dataclass
-class PermutationMove(Move):
-  '''Describes a move as two indices of rects to be swapped in the encoded rect list (with optional flip)'''
-  first_idx: int
-  second_idx: int
-  flip: bool
-
-  @classmethod
-  def encode_solution(cls, solution: BoxSolution) -> list[Rectangle]:
-    '''
-    Turns the solution into a list of boxes
-    '''
-    return flatten([b.rects.values() for b in solution.boxes.values()])
-
-  @classmethod
-  def decode_rect_list(cls, rects: list[Rectangle], box_length: int) -> list[Box]:
-    '''
-    Turns a list of rectangles into a valid solution to the box-rect problem.
-    '''
-    boxes = [Box(0, box_length)]
-
-    for rect in rects:
-      rect_placed = False
-      # Try to fit it in every box
-      for box in boxes:
-        # If it was placed already break box iteration, we've found its home
-        if rect_placed:
-          break
-
-        # Iterate over every possible origin
-        for origin in box.get_adjacent_coordinates():
-          rect.move_to(*origin)
-
-          # Place if it fits
-          if rect.get_all_coordinates() <= box.get_free_coordinates():
-            box.add_rect(rect)
-            rect_placed = True
-            break
-
-      # If none fit, create a new one and put it at 0/0
-      if not rect_placed:
-        rect.move_to(0, 0)
-        new_box = Box(len(boxes), box_length, rect)
-        boxes.append(new_box)
-
-    # Legacy placement strategy, is faster but quality is significantly worse
-    # # Take rects one by one and put them into a new box..
-    # # Once one boundary is crossed, start with a new box
-    # boxes = [Box(0, box_length)]
-    # current_box = boxes[0]
-    # current_y = 0 # Current row's y index
-    # next_x = 0 # Next x coordinate for a box
-    # next_y = 0 # Next y index for a row
-    # # Go through rects until all have been processed
-    # for rect in rects:
-    #   # Case 1: Rect fits into this row
-    #   if next_x + rect.width <= box_length and next_y + rect.height <= box_length:
-    #     # Update this rect's coordinates
-    #     rect.move_to(next_x, current_y)
-    #     current_box.add_rect(rect)
-    #     # Also update the next corodinate
-    #     next_x += rect.width
-    #     next_y = max(next_y, current_y + rect.height)
-    #     continue
-    #   #  Case 2: Rects overflows to the right, but fits into a next row within this box
-    #   if next_x + rect.width > box_length and next_y + rect.height <= box_length:
-    #     # NOTE: By specification this must fit here, box_length is guaranteed to be larger than any rect side
-    #     rect.move_to(0, next_y)
-    #     current_box.add_rect(rect)
-    #     # Update coordinates for the next box
-    #     next_x = rect.width
-    #     current_y = next_y
-    #     next_y = current_y + rect.height
-    #     continue
-    #   # Case 3: Rect does not fit into this box, create a new one and push it to boxes
-    #   current_box = Box(len(boxes), box_length)
-    #   rect.move_to(0, 0)
-    #   current_box.add_rect(rect)
-    #   boxes.append(current_box)
-    #   # And set the next coordinates again
-    #   next_x = rect.width
-    #   current_y = 0
-    #   next_y = rect.height
-
-    # return list of constructed boxes
-    return boxes
-
-  def apply_to_solution(self, solution: BoxSolution):
-    '''Applies this move to a given box solution'''
-    encoded_rects = self.encode_solution(solution)
-    # Swap
-    if self.first_idx != self.second_idx:
-      encoded_rects[self.first_idx], encoded_rects[self.second_idx] = encoded_rects[self.second_idx], encoded_rects[self.first_idx]
-
-    # Flip
-    if self.flip:
-      this_rect = encoded_rects[self.first_idx]
-      this_rect.width, this_rect.height = this_rect.height, this_rect.width
-
-    # Decode and modify in-place
-    solution.boxes = { box.id: box for box in self.decode_rect_list(encoded_rects, solution.side_length) }
-
-  def undo(self, solution: BoxSolution):
-    # Luckily this operation is symmetric :)
-    self.apply_to_solution(solution)

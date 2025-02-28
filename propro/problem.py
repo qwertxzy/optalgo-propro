@@ -6,11 +6,28 @@ concrete implementation for the box-rectangle problem given.
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from random import choice
-from itertools import combinations
 from dataclasses import dataclass
-from math import log2
 
-from geometry import Rectangle, Box
+import numpy as np
+import numba
+
+from geometry.box import compute_box_incident_edges
+from geometry.rectangle import check_rect_overlap
+
+@numba.njit
+def calc_entropy_fast(box_counts):
+  """Numba time"""
+  total_rects = sum(box_counts)
+  if total_rects == 0:
+    return 0.0
+
+  probabilities = [count / total_rects for count in box_counts]
+  entropy = 0.0
+  for p in probabilities:
+    if p > 0:
+      entropy -= p * np.log2(p)
+
+  return entropy
 
 @dataclass
 class Score:
@@ -33,28 +50,20 @@ class Score:
     return f"Score({self.box_count=}, {self.box_entropy=}, {self.incident_edges=})"
 
   def __lt__(self, other: Score):
-    # First level: match on overall box count
-    match (self.box_count, other.box_count):
-      # Both solutions are invalid, don't care about ordering
-      case (None, None): return True
-      # Self is valid, other is invalid
-      case (_, None): return True
-      # Self is invalid, other is valid
-      case (None, _): return False
-      # Both are valid, self has less boxes than other
-      case (sc, oc) if sc < oc: return True
-      # Both are valid, self has more boxes than other
-      case (sc, oc) if sc > oc: return False
-      # Both are valid, both have the same boxes
-      case (sc, oc) if sc == oc:
-        # Second level: Match on box gain
-        match (self.box_entropy, other.box_entropy):
-          # Self has a smaller box entropy -> it is smaller
-          case (se, oe) if se < oe: return True
-          # Self has a larger box entropy -> it is larger
-          case (se, oe) if se > oe: return False
-          # Box entropy are the same -> Decide on incident edges
-          case (se, oe) if se == oe: return self.incident_edges > other.incident_edges
+    # Handle invalid solutions first
+    if self.box_count is None and other.box_count is None:
+      return True
+    if other.box_count is None:
+      return True
+    if self.box_count is None:
+      return False
+
+    # Compare in order of priority
+    if self.box_count != other.box_count:
+      return self.box_count < other.box_count
+    if self.box_entropy != other.box_entropy:
+      return self.box_entropy < other.box_entropy
+    return self.incident_edges > other.incident_edges
 
   def __eq__(self, other: Score):
     return all([
@@ -71,6 +80,14 @@ class Problem(ABC):
   Abstract base class for a generic optimization problem.
   '''
   current_solution: Solution
+
+  @abstractmethod
+  def prepare_greedy(self):
+    '''Prepares this solution for a greedy algorithm'''
+
+  @abstractmethod
+  def greedy_done(self) -> bool:
+    '''Returns true once the greedy algorithm is done'''
 
 class Solution(ABC):
   '''
@@ -92,145 +109,138 @@ class BoxProblem(Problem):
   Implementation for the box-rectangle problem.
   Contains the initial starting parameters and a current solution
   '''
+
+  current_solution: BoxSolution
+  score: Score
+
   def __init__(self, box_length: int, n_rect: int, w_range: range, h_range: range):
     '''
     Initializes the box problem with a trivial solution where each rectangle is in its own box.
     '''
-    boxes = []
+    rectangles = np.ndarray((n_rect, 5), dtype=np.int16)
     for n in range(n_rect):
       # Get ourselves a nice rect tangle
       width = choice(w_range)
       height = choice(h_range)
-      rect = Rectangle(0, 0, width, height, n)
-
-      # Now construct a new box and put just this one in it
-      boxes.append(Box(n, box_length, rect))
+      # TODO: named type?
+      rect = [0, 0, width, height, n]
+      rectangles[n] = rect
 
     # Finally, initialize the solution with list of boxes
-    self.current_solution = BoxSolution(box_length, boxes)
+    self.current_solution = BoxSolution(box_length, rectangles)
+
+  def prepare_greedy(self):
+    '''Unplaces all rects in the solution'''
+    self.current_solution.rectangles[:, 4] = -1
+
+  def greedy_done(self):
+    return np.all(self.current_solution.rectangles[:, 4] != -1)
 
 class BoxSolution(Solution):
   '''
   Holds a current solution of the box-rect problem.
   Will get copied and constructed a lot, so should probably be as light-weight as possible.
   '''
-  # Lookup box id -> box obj
-  boxes: dict[int, Box]
+  rectangles: np.ndarray
+  '''Array of rectangles of form `[x, y, w, h, b]` with `b` being the box number. (b=-1 for unplaced)'''
   side_length: int
+  '''Side length of a box'''
   currently_permissible_overlap: float
+  '''Value for the allowed overlap between rects that the solution may have'''
 
-  def __init__(self, side_length: int, box_list: list[Box]):
+  __score: Score
+  '''Score of this solution. Calculated on construction or when explicitly recalculated.'''
+
+  def __init__(self, side_length: int, rectangles: np.ndarray):
     '''
     Initialize the solution with a list of box objects
     '''
     self.currently_permissible_overlap = 0.0
     self.side_length = side_length
-    self.boxes = {}
-    for box in box_list:
-      self.boxes[box.id] = box
+    self.rectangles = rectangles
+    self.__calc_score()
 
   def __repr__(self):
     s = f"Score: {self.get_score()}\n"
     s += f"Allowed Overlap: {self.currently_permissible_overlap}\n"
-    s += '\n'.join([str(box) for box in self.boxes.values()])
+    s += '\n'.join(str(l) for l in self.iter_boxes())
     return s
 
-  # TODO: Covered by get_score() now
-  # def is_valid_move(self, move) -> bool:
-  #   '''
-  #   Checks whether a move of a rectangle to a new box and coordinates is valid
-  #   '''
-  #   # Get old box, new box and rect
-  #   from_box = self.boxes[move.from_box_id]
-  #   to_box = self.boxes[move.to_box_id]
-  #   rect = from_box.rects[move.rect_id].copy()
+  def iter_boxes(self):
+    '''Iterator over all boxes and yields a list of rectangles'''
+     # Iterate over all boxes
+    box_ids = np.unique(self.rectangles[:, 4])
+    for box_id in box_ids:
+      # Skip the 'unplaced' box
+      if box_id == -1:
+        continue
+      yield self.rectangles[np.where(self.rectangles[:, 4] == box_id)]
 
-  #   if move.flip:
-  #     rect.flip()
-  #   rect.move_to(move.new_x, move.new_y)
-
-  #   # Check if the rect would overflow to the right/bottom
-  #   if move.new_x + rect.width > self.side_length:
-  #     return False
-  #   if move.new_y + rect.height > self.side_length:
-  #     return False
-
-  #   # Check if the rect would overlap with any other rect in the new box
-  #   for other_rect in to_box.rects.values():
-  #     if rect.overlaps(other_rect, self.currently_permissible_overlap):
-  #       return False
-  #   return True
-
-  def get_potential_score(self, move) -> Score:
+  def compute_incident_edges(self) -> int:
     '''
-    Calculates the potential score of the solution after a given move.
+    Computes the number of coordinates shared by at least 2 rectangles or a rectangle and the box border.
     '''
-    # Perform move
-    move_sucessful = move.apply_to_solution(self)
-
-    # If move was unsuccessful, it resulted in an invalid solution
-    if not move_sucessful:
-      return Score(None, None, None)
-
-    # If move is valid, construct a proper score,
-    score = Score(len(self.boxes), self.compute_box_entropy(), self.compute_incident_edge_coordinates())
-
-    # Undo the move operation
-    move.undo(self)
-
-    return score
-
-  def compute_incident_edge_coordinates(self) -> int:
-    '''number of coordinates that at least 2 rectangles share.'''
     edges = 0
-    for box in self.boxes.values():
-      edges += box.get_incident_edge_count()
+    for box in self.iter_boxes():
+      edges += compute_box_incident_edges(box, self.side_length)
+
     return edges
 
   def compute_box_entropy(self) -> float:
-    '''Computes the entropy of all boxes with regard to their rect count'''
-    rect_counts = [len(b.rects) for b in self.boxes.values()]
-    total_rects = sum(rect_counts)
-    if total_rects == 0:
-      return 0.0
-    probabilities = [count / total_rects for count in rect_counts]
-    entropy = -sum(p * log2(p) if p > 0 else 0.0 for p in probabilities)
-    return entropy
+    '''Computes entropy over the number of rects per box'''
+    unique, counts = np.unique(self.rectangles[:, 4], return_counts=True)
+    # Remove unplaced rectangles
+    placed_mask = unique != -1
+    counts = counts[placed_mask]
 
-  # TODO: don't re-calculate this every time
+    return calc_entropy_fast(counts)
+
   def get_score(self) -> Score:
+    '''Returns the score of this solution'''
+    return self.__score
+
+  def __calc_score(self):
+    '''Calculates the score for this solution'''
     if not self.is_valid():
-      return Score(None, None, None)
+      self.__score = Score(None, None, None)
+      return
 
     # Calculate all aspects of a score
-    box_counts = len(self.boxes)
+    box_counts = len([i for i in np.unique(self.rectangles[:, 4]) if i != -1])
     box_entropy = self.compute_box_entropy()
-    incident_edges = self.compute_incident_edge_coordinates()
-    return Score(box_counts, box_entropy, incident_edges)
+    incident_edges = self.compute_incident_edges()
+    self.__score = Score(box_counts, box_entropy, incident_edges)
+    return
 
   def is_valid(self):
-    # Go over all rects in all boxes
-    for box in self.boxes.values():
-      # Easy case: Rect is out-of-bounds
-      for rect in box.rects.values():
-        if rect.get_x() + rect.width > self.side_length or rect.get_y() + rect.height > self.side_length:
-          return False
+    # Check for overflows
+    if self.check_overflow():
+      return False
 
-      # Harder case: Rect may overlap with any other in this box
-      for rect_a, rect_b in combinations(box.rects.values(), 2):
-        if rect_a.overlaps(rect_b, self.currently_permissible_overlap):
-          return False
+    # Check for overlaps
+    if self.check_overlap():
+      return False
+
     return True
 
-  def to_greedy_queue(self) -> list[Rectangle]:
+  def check_overflow(self) -> bool:
     '''
-    Empties all the rectangles from the solution
-    and returns them in a list for a greedy algorithm to solve
+    Checks boxes of this oslution for rects that overflow.
+    Returns true if at least one overflow occurs.
     '''
-    rects = []
-    for box in self.boxes.values():
-      for rect_id in list(box.rects.keys()):
-        rects.append(box.remove_rect(rect_id))
-    # Remove now empty boxes from solution
-    self.boxes.clear()
-    return rects
+    placed_mask = self.rectangles[:, 4] != -1
+    rects = self.rectangles[placed_mask]
+    return np.any((rects[:, 0] + rects[:, 2] > self.side_length) |
+                  (rects[:, 1] + rects[:, 3] > self.side_length))
+
+  def check_overlap(self) -> bool:
+    '''Checks for overlapping rectangles in the current solution.'''
+    for box in self.iter_boxes():
+      if len(box) == 1:
+        continue
+
+      for i in range(len(box)):
+        for j in range(i+1, len(box)):
+          if check_rect_overlap(box[i], box[j], self.currently_permissible_overlap):
+            return True
+    return False

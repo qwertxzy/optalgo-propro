@@ -4,18 +4,16 @@ Contains a basic neighborhood definition that must be inherited from
 from abc import ABC, abstractmethod
 
 from problem import BoxSolution
-from ..move import Move
 
 class Neighborhood(ABC):
   '''Abstract neighborhood base class'''
 
   neighbors = []
 
-  # MAX_NEIGHBORS = 250
-
   @classmethod
   @abstractmethod
-  def get_neighbors(cls, solution: BoxSolution) -> list[Move]:
+  def get_neighbors(cls, solution: BoxSolution) -> list[BoxSolution]:
     '''
-    Calculates neighbors of a given start solution.
+    Takes a solution and returns a list of neighboring solutions
+    with the first index being for each neighbor.
     '''

@@ -9,11 +9,13 @@ import threading
 from threading import Event
 import random
 import FreeSimpleGUI as sg
+import numpy as np
 
 from problem import BoxSolution, BoxProblem
 from algorithms import OptimizationAlgorithm, get_algo_by_name
 from modes import get_available_modes, get_mode_by_name
 from config import RunConfiguration, show_config_picker
+from geometry.box import compute_box_adjacent_coordinates
 
 BOX_SPACING = 0.5
 
@@ -30,18 +32,22 @@ def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float,
     graph.erase()
 
   # Pre-calculate constants
-  boxes_per_row = floor(sqrt(len(solution.boxes)))
+  num_boxes = len(np.unique(solution.rectangles[:, 4]))
+  boxes_per_row = floor(sqrt(num_boxes))
   scaled_side_length = solution.side_length * scaling_factor
   scaled_spacing = BOX_SPACING * scaling_factor
 
   # Draw the boxes
-  for box_idx, box in enumerate(list(solution.boxes.values())):
-
+  for box_idx, rectangles in enumerate(solution.iter_boxes()):
+    # Box with id -1 is for unplaced rects
+    if rectangles[0][4] == -1:
+      continue
     # Skip box if it doesn't need to be drawn again
     #  unless we erased the whole graph before
-    if not (box.needs_redraw or erase):
-      continue
-    box.needs_redraw = False
+    # TODO: reimplement that
+    # if not (box.needs_redraw or erase):
+    #   continue
+    # box.needs_redraw = False
 
     row = box_idx % boxes_per_row
     col = floor(box_idx / boxes_per_row)
@@ -57,17 +63,18 @@ def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float,
     )
 
     # Also paint the box's rectangles
-    for rect in list(box.rects.values()):
-      rect_left = box_left + rect.get_x() * scaling_factor
-      rect_top = box_top + rect.get_y() * scaling_factor
+    for rect in rectangles:
+      x, y, w, h, _ = rect
+      rect_left = box_left + x * scaling_factor
+      rect_top = box_top + y * scaling_factor
       graph.draw_rectangle(
         top_left=(rect_left, rect_top),
-        bottom_right=(rect_left + rect.width * scaling_factor, rect_top + rect.height * scaling_factor),
+        bottom_right=(rect_left + w * scaling_factor, rect_top + h * scaling_factor),
         fill_color='red'
       )
 
     # Paint the box's free coordinate search space
-    for (x, y) in list(box.get_adjacent_coordinates()):
+    for (x, y) in compute_box_adjacent_coordinates(rectangles, solution.side_length):
       dot_left = box_left + (x - 0.1) * scaling_factor
       dot_top = box_top + (y - 0.1) * scaling_factor
       graph.draw_rectangle(

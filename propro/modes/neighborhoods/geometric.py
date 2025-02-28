@@ -1,11 +1,11 @@
 import logging
-from dataclasses import dataclass
+
+import numpy as np
 
 from problem import BoxSolution
-from geometry import Box
 
+from geometry.box import compute_box_adjacent_coordinates
 from .neighborhood import Neighborhood
-from ..move import Move, ScoredMove
 
 logger = logging.getLogger(__name__)
 
@@ -13,146 +13,77 @@ class Geometric(Neighborhood):
   '''Implementation for a geometry-based neighborhood'''
 
   # TODO: Add the option to move a rect into a new box? Might be needed for simulated annealing
+  #   -> should be easy now, just add a new id to box_ids
 
-  # Incident edges will create local minima from which the neighborhood cannot escape
   # There needs to be a bonus for moving rects from an almost empty box to a crowded one maybe?
   # IDEA: Rects could be fixed to cut down on neighborhood size. Maybe large ones? All rects of a box when there are 0 free coords
 
   @classmethod
-  def get_neighbors(cls, solution: BoxSolution) -> list[ScoredMove]:
+  def get_neighbors(cls, solution: BoxSolution) -> BoxSolution:
     '''
     Calculates neighbors of a solution by geometric means
     Moves every rectangle in every box to every possible coordinate
     '''
     logger.info("Calculating Geometric neighborhoods")
     neighbors = []
-    current_score = solution.get_score()
 
-    # Iterate over all rectangles in all boxes
-    for current_box in sorted(solution.boxes.values(), key=lambda box: len(box.rects)):
-      # TODO: switch from desc to asc sorting at some point (after the initial early-return phase?)
-      # IDEA: Prioritize rects on generating valid moves?
-      for current_rect in sorted(current_box.rects.values(), key=lambda rect: rect.get_area(), reverse=True):
-        # Now iterate over all possible moves! A rect can be placed
-        # ... in any box
-        for possible_box in solution.boxes.values():
-          # ... in any free coordinate within this box
-          for (x, y) in list(possible_box.get_adjacent_coordinates()):
-            # ... at any rotation
-            for is_flipped in [False, True]:
+    # Get all possible box ids
+    box_ids = np.unique(solution.rectangles[:, 4])
 
-              # No move
-              if all([
-                current_box.id == possible_box.id,
-                current_rect.get_x() == x,
-                current_rect.get_y() == y,
-                not is_flipped
-              ]):
-                continue
+    # Get all possible adjacent coordinates
+    box_adjacent_coords = {}
+    for box_id in box_ids:
+      box = solution.rectangles[solution.rectangles[:, 4] == box_id]
+      box_adjacent_coords[box_id] = compute_box_adjacent_coordinates(box, solution.side_length)
 
-              # No flip if the rect is square
-              if current_rect.width == current_rect.height and is_flipped:
-                continue
+    # Sort rects by area descending
+    rect_areas = solution.rectangles[:, 2] * solution.rectangles[:, 3]
+    sorted_indices = np.argsort(-rect_areas)
 
-              move = GeometricMove(current_rect.id, current_box.id, possible_box.id, x, y, is_flipped)
+    # Iterate over all rectangles
+    for rect_idx in sorted_indices:
+      (cx, cy, cw, ch, cb) = solution.rectangles[rect_idx]
+      # Now iterate over all possible moves! A rect can be placed
+      # .. in any box
+      for box_id in box_ids:
+        box = solution.rectangles[np.where(solution.rectangles[:, 4] == box_id)]
+        # .. at any coordinate
+        for (x, y) in box_adjacent_coords[box_id]:
+          # .. at any rotation
+          for is_flipped in [False, True]:
 
-              # Calculate the score of the new solution
-              score = solution.get_potential_score(move)
+            # Nonsense movea
+            if any([
+              cx == x and cy == y and not is_flipped and cb == box_id,
+              cx + cw > solution.side_length and not is_flipped,
+              cy + ch > solution.side_length and not is_flipped
+            ]):
+              continue
 
-              # Skip invalid solutions
-              if score.box_count is None:
-                continue
+            # Create copy of all rectangles
+            neighbor = np.copy(solution.rectangles)
 
-              # add it to the neighbors
-              neighbors.append(ScoredMove(move, score))
+            # Modify rect at that index
+            current_rect = neighbor[rect_idx]
+            current_rect[0:2] = x, y
+            if is_flipped:
+              current_rect[[2, 3]] = current_rect[[3, 2]]
+            current_rect[4] = box_id
 
-              # Once a solution found that removes one box entirely, early return
-              if current_score.box_count > score.box_count:
-                logger.info("Early returned with %i neighbors. Removed one Box.", len(neighbors))
-                return neighbors
+            neighbor_solution = BoxSolution(solution.side_length, neighbor)
+            neighbor_score = neighbor_solution.get_score()
 
-              # Leads to plateaus in the solution space we cannot escape otherwise
-              # if len(neighbors) > max(cls.MAX_NEIGHBORS, len(solution.boxes) ** 2):
-              #   logger.info("Early returned with %i neighbors", len(neighbors))
-              #   return neighbors
-    logger.info("Explored all %i neighbors", len(neighbors))
+            # Skip invalid
+            if neighbor_score.box_count is None:
+              continue
+
+            # If box count is smaller than current, early return
+            if neighbor_score.box_count < solution.get_score().box_count:
+              neighbors.append(neighbor_solution)
+              logger.info("Found box-decreasing move, returning early")
+              return neighbors
+
+            # Append to neighbors
+            neighbors.append(neighbor_solution)
+    logger.info("Found %i neighbors", len(neighbors))
     return neighbors
-
-@dataclass
-class GeometricMove(Move):
-  '''Defines a move as a literal movement of a rectangle from one box to another'''
-  rect_id: int
-  from_box_id: int
-  to_box_id: int
-  new_x: int
-  new_y: int
-  flip: bool
-
-  old_x: int
-  old_y: int
-
-  def __init__(self, rect_id: int, from_box_id: int, to_box_id:int, new_x: int, new_y: int, flip: bool):
-    self.rect_id = rect_id
-    self.from_box_id = from_box_id
-    self.to_box_id = to_box_id
-    self.new_x = new_x
-    self.new_y = new_y
-    self.flip = flip
-    self.old_x = None
-    self.old_y = None
-
-  def apply_to_solution(self, solution: BoxSolution) -> bool:
-    '''
-    Tries to apply this move to a given box solution.
-    Will return false if resulting solution is invalid.
-    '''
-
-    # Get rect in old box
-    current_box = solution.boxes[self.from_box_id]
-    current_rect = current_box.remove_rect(self.rect_id)
-
-    # Save the old rect coordinates in case of undo
-    self.old_x = current_rect.get_x()
-    self.old_y = current_rect.get_y()
-
-    # Update rect coordinates
-    current_rect.move_to(self.new_x, self.new_y)
-    if self.flip:
-      current_rect.flip()
-
-    new_box = solution.boxes[self.to_box_id]
-    move_success = new_box.add_rect(current_rect)
-
-    if not move_success:
-      # Revert rect coordinates
-      current_rect.move_to(self.old_x, self.old_y)
-      if self.flip:
-        current_rect.flip()
-      # Add it back where it came from and return
-      current_box.add_rect(current_rect)
-      return False
-
-    # If the current box is now empty, remove it from the solution
-    if len(current_box.rects) == 0:
-      solution.boxes.pop(self.from_box_id)
-
-    return True
-
-  def undo(self, solution: BoxSolution):
-    '''Undoes whatever this move had done to the argument solution'''
-    if self.old_x is None or self.old_y is None:
-      raise ValueError("Undo called without the move being performed before!")
-
-    # Remove rect from target box
-    rect = solution.boxes.get(self.to_box_id).remove_rect(self.rect_id)
-
-    # Restore attributes
-    rect.move_to(self.old_x, self.old_y)
-    if self.flip:
-      rect.flip()
-
-    # Maybe the old box was deleted by the move? Otherwise just add it back
-    if self.from_box_id not in solution.boxes.keys():
-      solution.boxes[self.from_box_id] = Box(self.from_box_id, solution.side_length, rect)
-    else:
-      solution.boxes[self.from_box_id].add_rect(rect)

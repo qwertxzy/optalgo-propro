@@ -6,7 +6,8 @@ import logging
 import random
 from math import exp
 
-from modes import Neighborhood, Geometric, GeometricOverlap, ScoredMove
+from modes import Neighborhood, Geometric, GeometricOverlap
+from problem import Solution
 
 from .base import OptimizationAlgorithm
 
@@ -43,12 +44,12 @@ class SimulatedAnnealing(OptimizationAlgorithm):
     if strategy == GeometricOverlap:
       self.problem.currently_permissible_overlap = 0.2
 
-  def __accept_solution(self, scored_move: ScoredMove):
+  def __accept_solution(self, neighbor: Solution):
     '''Checks whether a new solution shall be accepted or not'''
     # TODO: Is this a good idea?
     # If overall box count decreases, always accept
-    if self.problem.current_solution.get_score().box_count > scored_move.score.box_count:
-      scored_move.move.apply_to_solution(self.get_current_solution())
+    if self.problem.current_solution.get_score().box_count > neighbor.get_score().box_count:
+      self.problem.current_solution = neighbor
       return
 
     # If not strictly better, do the probabilistic acceptance on the incident edges
