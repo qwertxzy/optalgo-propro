@@ -3,6 +3,7 @@ import logging
 from dataclasses import dataclass
 from multiprocessing import Pool, cpu_count
 from copy import deepcopy
+import os
 
 import numpy as np
 
@@ -48,7 +49,7 @@ class Permutation(Neighborhood):
     logger.info("Generated %i moves", len(moves))
 
     # Now evaluate all these moves in parallel
-    n_proc = max(6, cpu_count()) # How many do we want?
+    n_proc = max(os.environ["OPTALGO_MAX_CPU"], cpu_count())
 
     # If we have more than 4 moves per chunk, go multithreaded
     if len(moves) >= n_proc * 4:

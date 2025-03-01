@@ -12,6 +12,8 @@ The program can be run in one of two ways:
 Interactive mode will show a configuration picker and a visual representation of what the algorithm is doing.
 Benchmark mode will run all known algorithms and modes with the same parameters and output a short overview of each performance.
 
+To limit the number of cpu cores the script uses, set the `OPTALGO_MAX_CPU` environment variable to a value of your liking.
+
 ### Interactive mode
 
 To run the program in interactive mode, execute `python propro/main.py` from the repository's root folder. By adding `-h`, an overview of all possible parameters is given to the user. If all nessecary parameters are specified, the configuration picker will be skipped and the user will be taken to the visualization immeadiately.
