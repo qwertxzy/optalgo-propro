@@ -1,5 +1,10 @@
+from __future__ import annotations
 import logging
 from dataclasses import dataclass
+from multiprocessing import Pool, cpu_count
+from copy import deepcopy
+
+import numpy as np
 
 from geometry import Box, Rectangle
 from utils import flatten
@@ -13,6 +18,24 @@ class Permutation(Neighborhood):
   '''Implementation for a permutation-based neighborhood'''
 
   @classmethod
+  def generate_neighbor_moves(cls, solution: BoxSolution) -> list[PermutationMove]:
+    '''Generates a list of permutation moves to go from this solution to a neighboring one'''
+    moves = []
+
+    # Do every possible pairwise swap
+    num_rects = sum(map(lambda b: len(b.rects), solution.boxes.values()))
+    for i in range(num_rects - 1):
+      move = PermutationMove(i, i + 1, False)
+      moves.append(move)
+
+    # Also flip every possible rect
+    for i in range(num_rects):
+      move = PermutationMove(i, i, True)
+      moves.append(move)
+
+    return moves
+
+  @classmethod
   def get_neighbors(cls, solution: BoxSolution) -> list[ScoredMove]:
     '''
     Encodes the solution into a long list of rects that get placed from top left-to bottom-right
@@ -20,22 +43,32 @@ class Permutation(Neighborhood):
     '''
     logger.info("Claculating Permutation neighborhood")
 
-    neighbors = []
+    moves = cls.generate_neighbor_moves(solution)
 
-    # Do every possible pairwise swap
-    num_rects = sum(map(lambda b: len(b.rects), solution.boxes.values()))
-    for i in range(num_rects - 1):
-      move = PermutationMove(i, i + 1, False)
-      score = solution.get_potential_score(move)
-      neighbors.append(ScoredMove(move, score))
+    logger.info("Generated %i moves", len(moves))
 
-    # Also flip every possible rect
-    for i in range(num_rects):
-      move = PermutationMove(i, i, True)
-      score = solution.get_potential_score(move)
-      neighbors.append(ScoredMove(move, score))
+    # Now evaluate all these moves in parallel
+    n_proc = max(6, cpu_count()) # How many do we want?
 
-    return neighbors
+    # If we have more than 4 moves per chunk, go multithreaded
+    if len(moves) >= n_proc * 4:
+      # Copy the current solution so every thread can modify it independently
+      # Expensive, but worth it (hopefully)
+      solution_copies = [deepcopy(solution) for _ in range(n_proc)]
+
+      # Split moves into chunks for pool to process
+      chunks = np.array_split(moves, n_proc)
+
+      # Evaluate all moves to scored moves concurrently
+      with Pool(processes=n_proc) as pool:
+        scored_moves = flatten(pool.starmap(cls.evaluate_moves, zip(solution_copies, chunks)))
+
+    # Else just do it in this thread
+    else:
+      scored_moves = cls.evaluate_moves(solution, moves)
+
+    logger.info("Explored %i neighbors", len(scored_moves))
+    return scored_moves
 
 @dataclass
 class PermutationMove(Move):
@@ -81,46 +114,6 @@ class PermutationMove(Move):
         rect.move_to(0, 0)
         new_box = Box(len(boxes), box_length, rect)
         boxes.append(new_box)
-
-    # Legacy placement strategy, is faster but quality is significantly worse
-    # # Take rects one by one and put them into a new box..
-    # # Once one boundary is crossed, start with a new box
-    # boxes = [Box(0, box_length)]
-    # current_box = boxes[0]
-    # current_y = 0 # Current row's y index
-    # next_x = 0 # Next x coordinate for a box
-    # next_y = 0 # Next y index for a row
-    # # Go through rects until all have been processed
-    # for rect in rects:
-    #   # Case 1: Rect fits into this row
-    #   if next_x + rect.width <= box_length and next_y + rect.height <= box_length:
-    #     # Update this rect's coordinates
-    #     rect.move_to(next_x, current_y)
-    #     current_box.add_rect(rect)
-    #     # Also update the next corodinate
-    #     next_x += rect.width
-    #     next_y = max(next_y, current_y + rect.height)
-    #     continue
-    #   #  Case 2: Rects overflows to the right, but fits into a next row within this box
-    #   if next_x + rect.width > box_length and next_y + rect.height <= box_length:
-    #     # NOTE: By specification this must fit here, box_length is guaranteed to be larger than any rect side
-    #     rect.move_to(0, next_y)
-    #     current_box.add_rect(rect)
-    #     # Update coordinates for the next box
-    #     next_x = rect.width
-    #     current_y = next_y
-    #     next_y = current_y + rect.height
-    #     continue
-    #   # Case 3: Rect does not fit into this box, create a new one and push it to boxes
-    #   current_box = Box(len(boxes), box_length)
-    #   rect.move_to(0, 0)
-    #   current_box.add_rect(rect)
-    #   boxes.append(current_box)
-    #   # And set the next coordinates again
-    #   next_x = rect.width
-    #   current_y = 0
-    #   next_y = rect.height
-
     # return list of constructed boxes
     return boxes
 
