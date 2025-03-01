@@ -16,10 +16,6 @@ class Rectangle:
   __y: int
   width: int
   height: int
-  max_size: int
-  '''the maximum of width and height'''
-  min_size: int
-  '''the minimum of width and height'''
   coordinates: set[tuple[int, int]]
   '''Set of all coordinate point this rect covers'''
   edges: set[tuple[int, int]]
@@ -27,29 +23,16 @@ class Rectangle:
   placeable_edges: set[tuple[int, int]]
   '''Set of the bottom & right edges of this rect'''
 
-  # could include overlapping properties here
-  # overlapArea: int = 0
-  # '''the area of overlap with other rectangles'''
-  # overlapRatio: float = 0.0
-  # '''the ratio of overlap with other rectangles'''
-  # overlaps: dict[int, 'Rectangle'] = dict()
-  # '''The rectangles this regtangle overlaps with.
-  # Maps rectangle id to rectangle object'''
-
-  adjacents: dict[int, Rectangle] = {}
-  '''
-  The rectangles this rectangle is adjacent to. No overlap, but touching.
-  Maps rectangle id to rectangle object
-  '''
+  highlighted: bool
+  '''Flag to draw this rect in a different color'''
 
   def __init__(self, x: int, y: int, w: int, h: int, i: int):
     self.__x = x
     self.__y = y
     self.width = w
     self.height = h
-    self.max_size = max(w, h)
-    self.min_size = min(w, h)
     self.id = i
+    self.highlighted = False
     self.placeable_edges = set()
     self.edges = set()
     self.__recompute_coordinates()

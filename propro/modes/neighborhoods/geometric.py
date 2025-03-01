@@ -185,6 +185,9 @@ class GeometricMove(Move):
       current_box.add_rect(current_rect)
       return False
 
+    # Highlight it as changed
+    current_rect.highlighted = True
+
     # If the current box is now empty, remove it from the solution
     if len(current_box.rects) == 0:
       solution.boxes.pop(self.from_box_id)
@@ -208,4 +211,5 @@ class GeometricMove(Move):
     if self.from_box_id not in solution.boxes.keys():
       solution.boxes[self.from_box_id] = Box(self.from_box_id, solution.side_length, rect)
     else:
+      # solution.boxes[self.from_box_id].needs_redraw = True
       solution.boxes[self.from_box_id].add_rect(rect)

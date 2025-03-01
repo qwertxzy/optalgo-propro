@@ -18,7 +18,6 @@ from config import RunConfiguration, show_config_picker
 BOX_SPACING = 0.5
 
 # TODO: Assignment calls for gui to be able to re-generate instances and restart with other algo / mode
-# TODO: highlight last move?
 
 logger = logging.getLogger(__name__)
 
@@ -60,10 +59,17 @@ def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float,
     for rect in list(box.rects.values()):
       rect_left = box_left + rect.get_x() * scaling_factor
       rect_top = box_top + rect.get_y() * scaling_factor
+      if rect.highlighted:
+        color = 'blue'
+        # Clear highlighted flag, redraw box in next iteration
+        rect.highlighted = False
+        box.needs_redraw = True
+      else:
+        color = 'red'
       graph.draw_rectangle(
         top_left=(rect_left, rect_top),
         bottom_right=(rect_left + rect.width * scaling_factor, rect_top + rect.height * scaling_factor),
-        fill_color='red'
+        fill_color=color
       )
 
     # Paint the box's free coordinate search space
