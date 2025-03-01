@@ -49,7 +49,7 @@ class Permutation(Neighborhood):
     logger.info("Generated %i moves", len(moves))
 
     # Now evaluate all these moves in parallel
-    n_proc = max(os.environ["OPTALGO_MAX_CPU"], cpu_count())
+    n_proc = max(int(os.environ.get("OPTALGO_MAX_CPU", 0)), cpu_count())
 
     # If we have more than 4 moves per chunk, go multithreaded
     if len(moves) >= n_proc * 4:
