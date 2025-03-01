@@ -14,8 +14,6 @@ class Geometric(Neighborhood):
 
   # TODO: Add the option to move a rect into a new box? Might be needed for simulated annealing
 
-  # Incident edges will create local minima from which the neighborhood cannot escape
-  # There needs to be a bonus for moving rects from an almost empty box to a crowded one maybe?
   # IDEA: Rects could be fixed to cut down on neighborhood size. Maybe large ones? All rects of a box when there are 0 free coords
 
   @classmethod
@@ -40,6 +38,15 @@ class Geometric(Neighborhood):
           for (x, y) in list(possible_box.get_adjacent_coordinates()):
             # ... at any rotation
             for is_flipped in [False, True]:
+
+              # Rect would overflow
+              if any([
+                not is_flipped and (x + current_rect.width > possible_box.side_length),
+                not is_flipped and (y + current_rect.height > possible_box.side_length),
+                is_flipped and (y + current_rect.width > possible_box.side_length),
+                is_flipped and (x + current_rect.height > possible_box.side_length),
+              ]):
+                continue
 
               # No move
               if all([

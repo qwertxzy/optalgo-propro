@@ -33,28 +33,20 @@ class Score:
     return f"Score({self.box_count=}, {self.box_entropy=}, {self.incident_edges=})"
 
   def __lt__(self, other: Score):
-    # First level: match on overall box count
-    match (self.box_count, other.box_count):
-      # Both solutions are invalid, don't care about ordering
-      case (None, None): return True
-      # Self is valid, other is invalid
-      case (_, None): return True
-      # Self is invalid, other is valid
-      case (None, _): return False
-      # Both are valid, self has less boxes than other
-      case (sc, oc) if sc < oc: return True
-      # Both are valid, self has more boxes than other
-      case (sc, oc) if sc > oc: return False
-      # Both are valid, both have the same boxes
-      case (sc, oc) if sc == oc:
-        # Second level: Match on box gain
-        match (self.box_entropy, other.box_entropy):
-          # Self has a smaller box entropy -> it is smaller
-          case (se, oe) if se < oe: return True
-          # Self has a larger box entropy -> it is larger
-          case (se, oe) if se > oe: return False
-          # Box entropy are the same -> Decide on incident edges
-          case (se, oe) if se == oe: return self.incident_edges > other.incident_edges
+    # Handle invalid solutions first
+    if self.box_count is None and other.box_count is None:
+      return True
+    if other.box_count is None:
+      return True
+    if self.box_count is None:
+      return False
+
+    # Compare in order of priority
+    if self.box_count != other.box_count:
+      return self.box_count < other.box_count
+    if self.box_entropy != other.box_entropy:
+      return self.box_entropy < other.box_entropy
+    return self.incident_edges > other.incident_edges
 
   def __eq__(self, other: Score):
     return all([
@@ -134,32 +126,6 @@ class BoxSolution(Solution):
     s += f"Allowed Overlap: {self.currently_permissible_overlap}\n"
     s += '\n'.join([str(box) for box in self.boxes.values()])
     return s
-
-  # TODO: Covered by get_score() now
-  # def is_valid_move(self, move) -> bool:
-  #   '''
-  #   Checks whether a move of a rectangle to a new box and coordinates is valid
-  #   '''
-  #   # Get old box, new box and rect
-  #   from_box = self.boxes[move.from_box_id]
-  #   to_box = self.boxes[move.to_box_id]
-  #   rect = from_box.rects[move.rect_id].copy()
-
-  #   if move.flip:
-  #     rect.flip()
-  #   rect.move_to(move.new_x, move.new_y)
-
-  #   # Check if the rect would overflow to the right/bottom
-  #   if move.new_x + rect.width > self.side_length:
-  #     return False
-  #   if move.new_y + rect.height > self.side_length:
-  #     return False
-
-  #   # Check if the rect would overlap with any other rect in the new box
-  #   for other_rect in to_box.rects.values():
-  #     if rect.overlaps(other_rect, self.currently_permissible_overlap):
-  #       return False
-  #   return True
 
   def get_potential_score(self, move) -> Score:
     '''

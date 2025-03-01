@@ -1,6 +1,6 @@
 import logging
 from collections import Counter
-from itertools import product
+from itertools import product, chain
 
 from .rectangle import Rectangle
 
@@ -112,15 +112,15 @@ class Box:
     self.adjacent_coordinates.clear()
 
     # Add the left and top edge of the box
-    self.adjacent_coordinates |= set(product(range(self.side_length + 1), [0]))
-    self.adjacent_coordinates |= set(product([0], range(self.side_length + 1)))
+    self.adjacent_coordinates |= set(chain(
+      product(range(self.side_length + 1), [0]),
+      product([0], range(self.side_length + 1))
+    ))
 
     # Xor each rects edges to the box set, will remove covered edges between two rects
     for rect in self.rects.values():
       self.adjacent_coordinates ^= rect.get_edges()
     # ..but that would falsely remove corners where 3 or 4 can intersect, so add these back
-    # NOTE: Will have to go over all rects again,
-    #       but we could probably also live without these 4 points if speed-up is nessecary?
     for rect in self.rects.values():
       self.adjacent_coordinates |= rect.get_corners()
 
@@ -141,4 +141,4 @@ class Box:
         self.incident_edge_count += rect.width
 
     # Add all edges that are incident to more than one rectangle (have a count > 1)
-    self.incident_edge_count += sum(1 for e in edge_count.values() if e > 1)
+    self.incident_edge_count += sum(e for e in edge_count.values() if e > 1)

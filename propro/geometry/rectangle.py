@@ -2,7 +2,9 @@
 Contains the Rectangle class for the box-rect problem
 '''
 from __future__ import annotations
-from itertools import product
+from itertools import product, chain
+
+import numpy as np
 
 class Rectangle:
   '''
@@ -101,39 +103,32 @@ class Rectangle:
     if self.id == other.id:
       return False
 
-    # If permissible overlap is zero, do strict boundary checks only
+    # Prune by doing AABB check first
+    if (self.__x >= other.get_x() + other.width or
+        other.get_x() >= self.__x + self.width or
+        self.__y >= other.get_y() + other.height or
+        other.get_y() >= self.__y + self.height):
+      return False
+
+    # If permissible overlap is 0 and if above didn't return,
+    # this must be an overlap
     if permissible_overlap == 0.0:
-      # Check if one rectangle is on the left side of the other
-      if self.get_x() + self.width <= other.get_x() or other.get_x() + other.width <= self.get_x():
-        return False
-      # Check if one rectangle is above the other
-      if self.get_y() + self.height <= other.get_y() or other.get_y() + other.height <= self.get_y():
-        return False
-      # Else they must intersect
       return True
 
-    # If it's not, we need to compute the overlap area of the two rects
-    # and compare it against the permissible value
-    overlap_x1 = max(self.__x, other.get_x())
-    overlap_y1 = max(self.__y, other.get_y())
-    overlap_x2 = min(self.__x + self.width, other.get_x() + other.width)
-    overlap_y2 = min(self.__y + self.height, other.get_y() + other.height)
+    # Calculate overlap area
+    overlap_x = max(0, min(self.__x + self.width, other.get_x() + other.width) - max(self.__x, other.get_x()))
+    overlap_y = max(0, min(self.__y + self.height, other.get_y() + other.height) - max(self.__y, other.get_y()))
 
-    overlap_width = abs(overlap_x1 - overlap_x2)
-    overlap_height = abs(overlap_y1 - overlap_y2)
-    overlap_area = overlap_width * overlap_height
-    return (overlap_area / (self.get_area() + other.get_area())) > permissible_overlap
+    return (overlap_x * overlap_y / (self.get_area() + other.get_area())) > permissible_overlap
 
   def __recompute_edges(self):
     # Placeable edges
     self.placeable_edges.clear()
-    self.placeable_edges |= self.get_edge("bottom")
-    self.placeable_edges |= self.get_edge("right")
+    self.placeable_edges |= self.get_edge(bot_right=True)
     # All edges are these + top and left
     self.edges.clear()
     self.edges |= self.placeable_edges
-    self.edges |= self.get_edge("top")
-    self.edges |= self.get_edge("left")
+    self.edges |= self.get_edge(bot_right=False)
 
   def get_corners(self) -> set[tuple[int, int]]:
     '''Returns a set of coordinates for each corner of the rectangle'''
@@ -152,82 +147,42 @@ class Rectangle:
     '''Returns a set of the edge coordinates of the rectangle for right and bottom edges'''
     return self.placeable_edges
 
-  def get_edge(self, direction: str) -> set[tuple[int, int]]:
+  def get_edge(self, bot_right: bool = False) -> set[tuple[int, int]]:
     '''
     Returns a set of the edge coordinates of the rectangle for a certain direction.
-    Valid directions: "top", "bottom", "left", "right"
+    If `bot_right = True`, returns only bottom and right edges, otherwise top and left ones.
     '''
-    match direction:
-      case "top": return set(product(
-          range(self.__x, self.__x + self.width + 1),
-          [self.__y]
-        ))
-      case "bottom": return set(product(
+    if bot_right:
+      return set(chain(
+        product(
           range(self.__x, self.__x + self.width + 1),
           [self.__y + self.height]
-      ))
-      case "left": return set(product(
-          [self.__x],
-          range(self.__y, self.__y + self.height + 1)
-      ))
-      case "right": return set(product(
+        ),
+        product(
           [self.__x + self.width],
           range(self.__y, self.__y + self.height + 1)
+        )
       ))
-      case d: raise ValueError(f"Invalid direction: {d}")
 
-  # def add_adjacent(self, other: Rectangle) -> bool:
-  #   '''Add a rectangle as adjacent to this one'''
-  #   # TODO: check if this is a valid adjacency
-  #   if other.id == self.id:
-  #     return False
-  #   self.adjacents[other.id] = other
-  #   return True
-
-  # def remove_adjacent(self, other: Rectangle) -> bool:
-  #   '''Remove a rectangle as adjacent to this one'''
-  #   if other == self:
-  #     return False
-  #   if not other.id in self.adjacents:
-  #     return False
-  #   self.adjacents.pop(other.id)
-  #   return True
-
-  # def is_adjacent(self, other: Rectangle) -> bool:
-  #   '''Check if a rectangle is adjacent to this one.
-  #   Must have been already added as adjacent before.'''
-  #   return other.id in self.adjacents
-
-  # Commented out since overlaps field  was also commented out
-  # def update_overlap(self):
-  #   '''Recalculate overlap with another rectangles'''
-  #   overlap_coords : set[tuple[int, int]] = set()
-  #   for other in self.overlaps.values():
-  #     overlap_coords = overlap_coords.union(self.get_all_coordinates().intersection(other.get_all_coordinates()))
-  #   self.overlapArea = len(overlap_coords)
-  #   self.overlapRatio = self.overlapArea / self.get_area()
-
-  # def add_overlap_with(self, other: 'Rectangle'):
-  #   '''Add a rectangle as overlapping with this one'''
-  #   if other.id == self.id:
-  #     return
-  #   self.overlaps[other.id] = other
-  #   self.update_overlap()
-
-  # def remove_overlap_with(self, other: 'Rectangle'):
-  #   '''Remove a rectangle as overlapping with this one'''
-  #   if other == self:
-  #     return
-  #   if not other.id in self.overlaps:
-  #     return
-  #   self.overlaps.pop(other.id)
-  #   self.update_overlap()
+    return set(chain(
+      product(
+        range(self.__x, self.__x + self.width + 1),
+        [self.__y]
+      ),
+      product(
+        [self.__x],
+        range(self.__y, self.__y + self.height + 1)
+      )
+    ))
 
   def __recompute_coordinates(self):
-    self.coordinates = set(product(
-      range(self.__x, self.__x + self.width),
-      range(self.__y, self.__y + self.height)
-    ))
+    # Get coordinates per axis
+    x_coords = np.arange(self.__x, self.__x + self.width)
+    y_coords = np.arange(self.__y, self.__y + self.height)
+
+    # Reshape them into a grid
+    coordinates_array = np.array(np.meshgrid(x_coords, y_coords)).T.reshape(-1, 2)
+    self.coordinates = set(map(tuple, coordinates_array))
 
   def flip(self):
     '''Flip the rectangle'''
@@ -242,16 +197,3 @@ class Rectangle:
     self.__y = new_y
     self.__recompute_coordinates()
     self.__recompute_edges()
-
-  # Is this still needed?
-  # def move(self, direction: str, distance: int):
-  #   '''move the rectangle in a certain direction for a certain distance.
-  #   No validity checks are done here.'''
-  #   if direction == "horizontal":
-  #     # try to move it to the left
-  #     self.__x = max(self.__x - distance, 0)
-  #   elif direction == "vertical":
-  #     # try to move it up
-  #     self.__y = max(self.__y - distance, 0)
-  #   else:
-  #     raise ValueError("Invalid direction: " + direction)
