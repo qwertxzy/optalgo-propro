@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 class Permutation(Neighborhood):
   '''Implementation for a permutation-based neighborhood'''
 
+  n_proc = max(int(os.environ.get("OPTALGO_MAX_CPU", 0)), cpu_count())
+
   @classmethod
   def generate_neighbor_moves(cls, solution: BoxSolution) -> list[PermutationMove]:
     '''Generates a list of permutation moves to go from this solution to a neighboring one'''
@@ -48,20 +50,17 @@ class Permutation(Neighborhood):
 
     logger.info("Generated %i moves", len(moves))
 
-    # Now evaluate all these moves in parallel
-    n_proc = max(int(os.environ.get("OPTALGO_MAX_CPU", 0)), cpu_count())
-
     # If we have more than 4 moves per chunk, go multithreaded
-    if len(moves) >= n_proc * 4:
+    if len(moves) >= cls.n_proc * 4:
       # Copy the current solution so every thread can modify it independently
       # Expensive, but worth it (hopefully)
-      solution_copies = [deepcopy(solution) for _ in range(n_proc)]
+      solution_copies = [deepcopy(solution) for _ in range(cls.n_proc)]
 
       # Split moves into chunks for pool to process
-      chunks = np.array_split(moves, n_proc)
+      chunks = np.array_split(moves, cls.n_proc)
 
       # Evaluate all moves to scored moves concurrently
-      with Pool(processes=n_proc) as pool:
+      with Pool(processes=cls.n_proc) as pool:
         scored_moves = flatten(pool.starmap(cls.evaluate_moves, zip(solution_copies, chunks)))
 
     # Else just do it in this thread
@@ -85,38 +84,52 @@ class PermutationMove(Move):
     '''
     return flatten([b.rects.values() for b in solution.boxes.values()])
 
-  # TODO: needs serious performance improvement..
   @classmethod
   def decode_rect_list(cls, rects: list[Rectangle], box_length: int) -> list[Box]:
     '''
     Turns a list of rectangles into a valid solution to the box-rect problem.
     '''
-    boxes: list[Box] = []
+    boxes = [Box(0, box_length)]
 
+    # TODO: add upwards packing for every rect placed
+
+    # Take rects one by one and put them into a new box..
+    # # Once one boundary is crossed, start with a new box
+    boxes = [Box(0, box_length)]
+    current_box = boxes[0]
+    current_y = 0 # Current row's y index
+    next_x = 0 # Next x coordinate for a box
+    next_y = 0 # Next y index for a row
+    # Go through rects until all have been processed
     for rect in rects:
-      rect_placed = False
-      # Try to fit it in every box
-      for box in boxes:
-        # If it was placed already break box iteration, we've found its home
-        if rect_placed:
-          break
-
-        # Iterate over every possible origin
-        for origin in sorted(box.get_adjacent_coordinates()):
-          rect.move_to(*origin)
-
-          # Place if it fits
-          if rect.get_all_coordinates() <= box.get_free_coordinates():
-            box.add_rect(rect)
-            rect_placed = True
-            break
-
-      # If none fit, create a new one and put it at 0/0
-      if not rect_placed:
-        rect.move_to(0, 0)
-        new_box = Box(len(boxes), box_length, rect)
-        boxes.append(new_box)
-    # return list of constructed boxes
+      # Case 1: Rect fits into this row
+      if next_x + rect.width <= box_length and next_y + rect.height <= box_length:
+        # Update this rect's coordinates
+        rect.move_to(next_x, current_y)
+        current_box.add_rect(rect)
+        # Also update the next corodinate
+        next_x += rect.width
+        next_y = max(next_y, current_y + rect.height)
+        continue
+      #  Case 2: Rects overflows to the right, but fits into a next row within this box
+      if next_x + rect.width > box_length and next_y + rect.height <= box_length:
+        # NOTE: By specification this must fit here, box_length is guaranteed to be larger than any rect side
+        rect.move_to(0, next_y)
+        current_box.add_rect(rect)
+        # Update coordinates for the next box
+        next_x = rect.width
+        current_y = next_y
+        next_y = current_y + rect.height
+        continue
+      # Case 3: Rect does not fit into this box, create a new one and push it to boxes
+      current_box = Box(len(boxes), box_length)
+      rect.move_to(0, 0)
+      current_box.add_rect(rect)
+      boxes.append(current_box)
+      # And set the next coordinates again
+      next_x = rect.width
+      current_y = 0
+      next_y = rect.height
     return boxes
 
   def apply_to_solution(self, solution: BoxSolution) -> bool:
