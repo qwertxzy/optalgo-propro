@@ -9,6 +9,7 @@ from random import choice
 from itertools import combinations
 from dataclasses import dataclass
 from math import log2
+from collections import deque
 
 from geometry import Rectangle, Box
 
@@ -106,10 +107,15 @@ class BoxSolution(Solution):
   Holds a current solution of the box-rect problem.
   Will get copied and constructed a lot, so should probably be as light-weight as possible.
   '''
-  # Lookup box id -> box obj
   boxes: dict[int, Box]
+  '''Lookup from box id to object'''
   side_length: int
+  '''Side length of all boxes'''
   currently_permissible_overlap: float
+  '''Fraction of overlap that is allowed between two rectangles'''
+
+  last_moved_rect_ids: deque[int]
+  '''Queue of last moved rect ids'''
 
   def __init__(self, side_length: int, box_list: list[Box]):
     '''
@@ -118,6 +124,8 @@ class BoxSolution(Solution):
     self.currently_permissible_overlap = 0.0
     self.side_length = side_length
     self.boxes = {}
+    # Initialize queue with max length = rect count / 2
+    self.last_moved_rect_ids = deque(maxlen=int(sum(len(b.rects) for b in box_list) / 2))
     for box in box_list:
       self.boxes[box.id] = box
 

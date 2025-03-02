@@ -7,7 +7,8 @@ from ..move import ScoredMove
 from .geometric import GeometricMove
 
 # TODO: stealing move from geometric neigborhood for now
-# TODO: Also finally implement this neighborhood definition for real..
+# TODO: Also finally implement this neighborhood definition for real.. 
+#  -> should work just the same, just call counting & set overlap by schedule
 
 logger = logging.getLogger(__name__)
 

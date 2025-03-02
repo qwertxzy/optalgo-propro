@@ -20,62 +20,62 @@ logger = logging.getLogger(__name__)
 class Geometric(Neighborhood):
   '''Implementation for a geometry-based neighborhood'''
 
-  # TODO: Add the option to move a rect into a new box? Might be needed for simulated annealing
-  # TODO: places lots of small rects in the first box which could be used to fill gaps elsewhere
-  # IDEA: Rects could be fixed to cut down on neighborhood size. Maybe large ones? All rects of a box when there are 0 free coords
+  n_proc = max(int(os.environ.get("OPTALGO_MAX_CPU", 0)), cpu_count())
+  '''Number of processes the neighborhood searching should use'''
 
-  # TODO: new bottleneck is this method
+  # TODO: Add the option to move a rect into a new box? Might be needed for simulated annealing
+
+  # IDEA: Last attempt on optimizing speed here could be caching moves and only re-calculating those where boxes/rects changed
   @classmethod
-  def generate_neighbor_moves(cls, solution: BoxSolution) -> list[GeometricMove]:
-    '''Generates a list of moves from the current solution to its neighbros'''
-    # Construct a list of possible moves
+  def generate_moves_for_rects(cls, solution: BoxSolution, ids: list[tuple[int, int]]) -> list[ScoredMove]:
+    '''
+    Generates a list of scoreed moves for the given rects in `solution`.
+    IDs must be given as a list `(bod_id, rect_id)`.
+    '''
     moves = []
 
-    boxes_by_rect_count_asc = sorted(solution.boxes.values(), key=lambda box: len(box.rects))
+    for (box_id, rect_id) in ids:
+      current_box = solution.boxes[box_id]
+      current_rect = current_box.rects[rect_id]
 
-    # Iterate over all rectangles in all boxes
-    for current_box in boxes_by_rect_count_asc:
-      # IDEA: switch from desc to asc sorting at some point (after the initial early-return phase?)
-      # IDEA: Prioritize rects on generating valid moves?
-      for current_rect in sorted(current_box.rects.values(), key=lambda rect: rect.get_area(), reverse=True):
-        # Now iterate over all possible moves! A rect can be placed
-        # ... in any box (by rect count descending -> prefer full boxes)
-        for possible_box in reversed(boxes_by_rect_count_asc):
-          # ... in any free coordinate within this box
-          for (x, y) in possible_box.get_adjacent_coordinates():
-            # ... at any rotation
-            for is_flipped in [False, True]:
+      # Iterate over every target box
+      for possible_box in solution.boxes.values():
+        # ... in any free coordinate within this box
+        for (x, y) in possible_box.get_adjacent_coordinates():
+          # ... at any rotation
+          for is_flipped in [False, True]:
 
-              # Rect would overflow
-              if any([
-                not is_flipped and (x + current_rect.width > possible_box.side_length),
-                not is_flipped and (y + current_rect.height > possible_box.side_length),
-                is_flipped and (y + current_rect.width > possible_box.side_length),
-                is_flipped and (x + current_rect.height > possible_box.side_length),
-              ]):
-                continue
+            # Rect would overflow
+            if any([
+              not is_flipped and (x + current_rect.width > possible_box.side_length),
+              not is_flipped and (y + current_rect.height > possible_box.side_length),
+              is_flipped and (y + current_rect.width > possible_box.side_length),
+              is_flipped and (x + current_rect.height > possible_box.side_length),
+            ]):
+              continue
 
-              # No move
-              if all([
-                current_box.id == possible_box.id,
-                current_rect.get_x() == x,
-                current_rect.get_y() == y,
-                not is_flipped
-              ]):
-                continue
+            # No move
+            if all([
+              current_box.id == possible_box.id,
+              current_rect.get_x() == x,
+              current_rect.get_y() == y,
+              not is_flipped
+            ]):
+              continue
 
-              # No flip if the rect is square
-              if current_rect.width == current_rect.height and is_flipped:
-                continue
+            # No flip if the rect is square
+            if current_rect.width == current_rect.height and is_flipped:
+              continue
 
-              move = GeometricMove(current_rect.id, current_box.id, possible_box.id, x, y, is_flipped)
-              moves.append(move)
+            move = GeometricMove(current_rect.id, current_box.id, possible_box.id, x, y, is_flipped)
+            moves.append(move)
 
-              # If this was a box decreasing move, break the loop and continue with what we have
-              # TODO: check if this is really a good idea..
-              if move.is_boxcount_decreasing(solution):
-                logger.info("Returned early with box-count decrease")
-                return moves
+            # # If we have more than 5 rects to process, we are fine with finding a box-decreasing move
+            # if move.is_boxcount_decreasing(solution):
+            #   return cls.evaluate_moves(solution, [move])
+
+    # Now score all moves
+    moves = cls.evaluate_moves(solution, moves)
     return moves
 
   @classmethod
@@ -86,29 +86,25 @@ class Geometric(Neighborhood):
     '''
     logger.info("Calculating Geometric neighborhoods")
 
-    moves = cls.generate_neighbor_moves(solution)
+    # Create list of tuples (box_id, rect_id)
+    rects = []
+    for box_id, box in solution.boxes.items():
+      for rect_id in box.rects.keys():
+        if rect_id not in solution.last_moved_rect_ids:
+          rects.append((box_id, rect_id))
 
-    logger.info("Generated %i moves", len(moves))
+    # Copy the current solution so every thread can modify it independently
+    # Expensive, but worth it (hopefully)
+    solution_copies = [deepcopy(solution) for _ in range(cls.n_proc)]
 
-    # Now evaluate all these moves in parallel
-    n_proc = max(int(os.environ.get("OPTALGO_MAX_CPU", 0)), cpu_count())
+    # Split moves into chunks for pool to process
+    chunks = np.array_split(rects, cls.n_proc)
 
-    # If we have more than 20 moves per chunk, go multithreaded
-    if len(moves) >= n_proc * 20:
-      # Copy the current solution so every thread can modify it independently
-      # Expensive, but worth it (hopefully)
-      solution_copies = [deepcopy(solution) for _ in range(n_proc)]
+    logger.info("Split move generation into chunks of sizes %s", [len(c) for c in chunks])
 
-      # Split moves into chunks for pool to process
-      chunks = np.array_split(moves, n_proc)
-
-      # Evaluate all moves to scored moves concurrently
-      with Pool(processes=n_proc) as pool:
-        scored_moves = flatten(pool.starmap(cls.evaluate_moves, zip(solution_copies, chunks)))
-
-    # Else just do it in this thread
-    else:
-      scored_moves = cls.evaluate_moves(solution, moves)
+    # Evaluate all rects to scored moves concurrently
+    with Pool(processes=cls.n_proc) as pool:
+      scored_moves = flatten(pool.starmap(cls.generate_moves_for_rects, zip(solution_copies, chunks)))
 
     logger.info("Explored %i neighbors", len(scored_moves))
     return scored_moves
@@ -189,6 +185,9 @@ class GeometricMove(Move):
     # Highlight it as changed
     current_rect.highlighted = True
 
+    # Add rect id to problem's last moved queue
+    solution.last_moved_rect_ids.append(current_rect.id)
+
     # If the current box is now empty, remove it from the solution
     if len(current_box.rects) == 0:
       solution.boxes.pop(self.from_box_id)
@@ -207,6 +206,9 @@ class GeometricMove(Move):
     rect.move_to(self.old_x, self.old_y)
     if self.flip:
       rect.flip()
+
+    # Remove it from last moved rect ids again
+    solution.last_moved_rect_ids.pop()
 
     # Maybe the old box was deleted by the move? Otherwise just add it back
     if self.from_box_id not in solution.boxes.keys():

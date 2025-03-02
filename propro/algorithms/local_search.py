@@ -33,7 +33,7 @@ class LocalSearch(OptimizationAlgorithm):
 
   def tick(self):
     # Get all possible neighbors
-    neighbors = self.strategy.get_neighbors(self.get_current_solution())
+    neighbors = self.strategy.get_neighbors(self.problem.current_solution)
 
     if len(neighbors) == 0:
       logger.info("Algorithm stuck! No neighbors could be found.")
@@ -42,6 +42,11 @@ class LocalSearch(OptimizationAlgorithm):
     logger.info("Found %i neighbors", len(neighbors))
 
     best_score = min(n.score for n in neighbors)
+
+    if best_score > self.problem.current_solution.get_score():
+      logger.warning("Algorithm reached a local minimum.")
+      return
+
     # Pick one of the best neighbors at random
     best_neighbors = [n.move for n in neighbors if n.score == best_score]
     best_neighbor = random.choice(best_neighbors)
@@ -49,8 +54,11 @@ class LocalSearch(OptimizationAlgorithm):
     # Actually apply the move
     best_neighbor.apply_to_solution(self.problem.current_solution)
 
+    # Per definition the current solution will also be the best solution
+    self.best_solution = self.problem.current_solution
 
     # TODO: also not really something that should be handled in the search algorithm?
+    # -> Class can count the number of times tick has been called -> cooling schedule
     # Adjust permissible overlap
     if self.strategy == GeometricOverlap:
       current_overlap = self.problem.current_solution.currently_permissible_overlap

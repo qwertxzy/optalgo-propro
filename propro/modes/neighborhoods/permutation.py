@@ -85,12 +85,13 @@ class PermutationMove(Move):
     '''
     return flatten([b.rects.values() for b in solution.boxes.values()])
 
+  # TODO: needs serious performance improvement..
   @classmethod
   def decode_rect_list(cls, rects: list[Rectangle], box_length: int) -> list[Box]:
     '''
     Turns a list of rectangles into a valid solution to the box-rect problem.
     '''
-    boxes = [Box(0, box_length)]
+    boxes: list[Box] = []
 
     for rect in rects:
       rect_placed = False
@@ -101,7 +102,7 @@ class PermutationMove(Move):
           break
 
         # Iterate over every possible origin
-        for origin in box.get_adjacent_coordinates():
+        for origin in sorted(box.get_adjacent_coordinates()):
           rect.move_to(*origin)
 
           # Place if it fits
@@ -118,20 +119,30 @@ class PermutationMove(Move):
     # return list of constructed boxes
     return boxes
 
-  def apply_to_solution(self, solution: BoxSolution):
+  def apply_to_solution(self, solution: BoxSolution) -> bool:
     '''Applies this move to a given box solution'''
     encoded_rects = self.encode_solution(solution)
+
     # Swap
     if self.first_idx != self.second_idx:
-      encoded_rects[self.first_idx], encoded_rects[self.second_idx] = encoded_rects[self.second_idx], encoded_rects[self.first_idx]
+      (
+        encoded_rects[self.first_idx], encoded_rects[self.second_idx]
+      ) = (
+        encoded_rects[self.second_idx], encoded_rects[self.first_idx]
+      )
+      encoded_rects[self.first_idx].highlighted = True
+      encoded_rects[self.second_idx].highlighted = True
 
     # Flip
     if self.flip:
       this_rect = encoded_rects[self.first_idx]
       this_rect.width, this_rect.height = this_rect.height, this_rect.width
+      # Highlight it as changed
+      this_rect.highlighted = True
 
     # Decode and modify in-place
     solution.boxes = { box.id: box for box in self.decode_rect_list(encoded_rects, solution.side_length) }
+    return True
 
   def undo(self, solution: BoxSolution):
     # Luckily this operation is symmetric :)

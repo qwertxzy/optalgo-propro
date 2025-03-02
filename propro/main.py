@@ -143,14 +143,14 @@ def show_app(config: RunConfiguration):
   )
   optimization_algorithm: OptimizationAlgorithm = config.algorithm(optimization_problem, config.mode)
 
-  draw_solution(graph, optimization_algorithm.get_current_solution(), scaling_factor=2, erase=True)
+  draw_solution(graph, optimization_algorithm.problem.current_solution, scaling_factor=2, erase=True)
 
   # Events to signal the main thread to redraw the current solution
   tick_complete_event = Event()
   redraw_complete_event = Event()
 
   # Keep track of last drawn to erase only when boxcount changes
-  last_box_count = optimization_algorithm.get_current_solution().get_score().box_count
+  last_box_count = optimization_algorithm.problem.current_solution.get_score().box_count
 
   while True:
     event, values = window.read(timeout=5)
@@ -171,12 +171,12 @@ def show_app(config: RunConfiguration):
       case "scaling":
         # Wait until a possible tick is complete and redraw the whole solution
         # tick_complete_event.wait()
-        draw_solution(graph, optimization_algorithm.get_current_solution(), values['scaling'], erase=True)
+        draw_solution(graph, optimization_algorithm.problem.current_solution, values['scaling'], erase=True)
         redraw_complete_event.set()
 
     # If the redraw event was set, draw & refresh gui
     if tick_complete_event.is_set():
-      current_solution = optimization_algorithm.get_current_solution()
+      current_solution = optimization_algorithm.problem.current_solution
       # Check if we need to redraw the whole solution because box count changed
       if current_solution.get_score().box_count != last_box_count:
         erase = True

@@ -29,6 +29,7 @@ class GreedySearch(OptimizationAlgorithm):
   def tick(self):
     # If there are no unplaced objects we are done here
     if len(self.unprocessed_objects) == 0:
+      self.best_solution = self.problem.current_solution
       return
 
     # Get the next object with the given strategy

@@ -32,3 +32,7 @@ class ScoredMove:
 
   def __iter__(self):
     return iter((self.move, self.score))
+
+  def is_valid(self) -> bool:
+    '''Returns true if applying this move results in a valid solution'''
+    return self.score.box_count is not None

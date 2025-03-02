@@ -22,7 +22,6 @@ class SimulatedAnnealing(OptimizationAlgorithm):
 
   temperature: float
   inner_loop_counter: int
-  # TODO: save best-so-far solution and present it to the user somehow
 
   def __init__(self, problem, neighborhood_definition: type[Neighborhood] = Geometric):
     super().__init__(problem)
@@ -45,21 +44,25 @@ class SimulatedAnnealing(OptimizationAlgorithm):
 
   def __accept_solution(self, scored_move: ScoredMove):
     '''Checks whether a new solution shall be accepted or not'''
-    # TODO: Is this a good idea?
-    # If overall box count decreases, always accept
-    if self.problem.current_solution.get_score().box_count > scored_move.score.box_count:
-      scored_move.move.apply_to_solution(self.get_current_solution())
+    current_score = self.problem.current_solution.get_score()
+    # If score is better, apply move
+    if current_score > scored_move.score:
+      scored_move.move.apply_to_solution(self.problem.current_solution)
       return
 
-    # If not strictly better, do the probabilistic acceptance on the incident edges
-    score_delta = self.problem.current_solution.get_score().incident_edges - scored_move.score.incident_edges
-    if score_delta <= 0:
-      # New solution is better, update
-      scored_move.move.apply_to_solution(self.get_current_solution())
-    else:
-      # Check for temperature chance
-      if exp(-score_delta / self.temperature) > random.random():
-        scored_move.move.apply_to_solution(self.get_current_solution())
+    # Draw a random number
+    rand = random.random()
+
+    # If not strictly better, do the probabilistic acceptance on box entropy
+    entropy_delta = current_score.box_entropy - scored_move.score.box_entropy
+    if exp(-entropy_delta / self.temperature) > rand:
+      scored_move.move.apply_to_solution(self.problem.current_solution)
+      return
+
+    # If that didn't do it, do the probabilistic check on incident edges
+    edge_delta = current_score.incident_edges - scored_move.score.incident_edges
+    if exp(-edge_delta / self.temperature) > rand:
+      scored_move.move.apply_to_solution(self.problem.current_solution)
 
   def __update_temperature(self):
     '''Can be called to update the temperature after each algorithm tick'''
@@ -78,7 +81,7 @@ class SimulatedAnnealing(OptimizationAlgorithm):
 
   def tick(self):
      # Get all possible neighbors
-    neighbors = self.strategy.get_neighbors(self.get_current_solution())
+    neighbors = self.strategy.get_neighbors(self.problem.current_solution)
 
     if len(neighbors) == 0:
       logger.warning("Algorithm stuck! No neighbors could be found.")
@@ -87,10 +90,12 @@ class SimulatedAnnealing(OptimizationAlgorithm):
     logger.info("Found %i neighbors", len(neighbors))
 
     # Get a random move
-    neighbor = random.choice(neighbors)
+    neighbor = random.choice([n for n in neighbors if n.is_valid()])
 
     # Possibly accept neighbor as new current solution
     self.__accept_solution(neighbor)
 
     # Update temperature
     self.__update_temperature()
+
+    logger.info("Now at score %s", self.problem.current_solution.get_score())
