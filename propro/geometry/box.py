@@ -86,7 +86,7 @@ class Box:
     '''
     Recalculates the statistics of this box.
     '''
-    self.__recalculate_adjacent_coordinates()
+    # self.__recalculate_adjacent_coordinates()
     self.__recalculate_incident_edge_count()
     self.dirty = False
 
@@ -104,25 +104,25 @@ class Box:
       self.recalculate_stats()
     return self.incident_edge_count
 
-  def __recalculate_adjacent_coordinates(self):
-    '''
-    Recalculates the coordinates adjacent to the rectangles in this box.
-    '''
-    # Clear the set
-    self.adjacent_coordinates.clear()
+  # def __recalculate_adjacent_coordinates(self):
+  #   '''
+  #   Recalculates the coordinates adjacent to the rectangles in this box.
+  #   '''
+  #   # Clear the set
+  #   self.adjacent_coordinates.clear()
 
-    # Add the left and top edge of the box
-    self.adjacent_coordinates |= set(chain(
-      product(range(self.side_length + 1), [0]),
-      product([0], range(self.side_length + 1))
-    ))
+  #   # Add the left and top edge of the box
+  #   self.adjacent_coordinates |= set(chain(
+  #     product(range(self.side_length + 1), [0]),
+  #     product([0], range(self.side_length + 1))
+  #   ))
 
-    # Xor each rects edges to the box set, will remove covered edges between two rects
-    for rect in self.rects.values():
-      self.adjacent_coordinates ^= rect.get_edges()
-    # ..but that would falsely remove corners where 3 or 4 can intersect, so add these back
-    for rect in self.rects.values():
-      self.adjacent_coordinates |= rect.get_corners()
+  #   # Xor each rects edges to the box set, will remove covered edges between two rects
+  #   for rect in self.rects.values():
+  #     self.adjacent_coordinates ^= rect.get_edges()
+  #   # ..but that would falsely remove corners where 3 or 4 can intersect, so add these back
+  #   for rect in self.rects.values():
+  #     self.adjacent_coordinates |= rect.get_corners()
 
   def __recalculate_incident_edge_count(self):
     '''

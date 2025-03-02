@@ -25,13 +25,13 @@ class Geometric(Neighborhood):
 
   # TODO: Add the option to move a rect into a new box? Might be needed for simulated annealing
 
-  # IDEA: Last attempt on optimizing speed here could be caching moves and only re-calculating those where boxes/rects changed
   @classmethod
   def generate_moves_for_rects(cls, solution: BoxSolution, ids: list[tuple[int, int]]) -> list[ScoredMove]:
     '''
     Generates a list of scoreed moves for the given rects in `solution`.
     IDs must be given as a list `(bod_id, rect_id)`.
     '''
+    current_score = solution.get_score()
     moves = []
 
     for (box_id, rect_id) in ids:
@@ -41,7 +41,7 @@ class Geometric(Neighborhood):
       # Iterate over every target box
       for possible_box in solution.boxes.values():
         # ... in any free coordinate within this box
-        for (x, y) in possible_box.get_adjacent_coordinates():
+        for (x, y) in list(possible_box.get_adjacent_coordinates()):
           # ... at any rotation
           for is_flipped in [False, True]:
 
@@ -68,14 +68,17 @@ class Geometric(Neighborhood):
               continue
 
             move = GeometricMove(current_rect.id, current_box.id, possible_box.id, x, y, is_flipped)
-            moves.append(move)
+            score = solution.get_potential_score(move)
+
+            # Skip invalid moves
+            if score.box_count is None:
+              continue
+
+            moves.append(ScoredMove(move, score))
 
             # # If we have more than 5 rects to process, we are fine with finding a box-decreasing move
-            # if move.is_boxcount_decreasing(solution):
-            #   return cls.evaluate_moves(solution, [move])
-
-    # Now score all moves
-    moves = cls.evaluate_moves(solution, moves)
+            if current_score.box_count > score.box_count:
+              return moves
     return moves
 
   @classmethod
@@ -88,23 +91,41 @@ class Geometric(Neighborhood):
 
     # Create list of tuples (box_id, rect_id)
     rects = []
+
+    # Prio rect gets defined if there is a box with only one rect, if so try to place that
+    prio_rect = None
+
     for box_id, box in solution.boxes.items():
+      if prio_rect is not None:
+        break
+      # If we have a box with only one rect, go into quick mode
       for rect_id in box.rects.keys():
+        if len(box.rects) == 1:
+          prio_rect = (box_id, rect_id)
+          break
         if rect_id not in solution.last_moved_rect_ids:
           rects.append((box_id, rect_id))
 
-    # Copy the current solution so every thread can modify it independently
-    # Expensive, but worth it (hopefully)
-    solution_copies = [deepcopy(solution) for _ in range(cls.n_proc)]
+    # If we have a prio rect, generate moves only for this in hopes of
+    # putting it into another box
+    scored_moves = []
+    if prio_rect is not None:
+      scored_moves = cls.generate_moves_for_rects(solution, [prio_rect])
 
-    # Split moves into chunks for pool to process
-    chunks = np.array_split(rects, cls.n_proc)
+    # If scored moves are empty either because there was no prio rect or because
+    # the method didn't return any valid neighbors, do the expensive shaboingboing
+    if len(scored_moves) == 0:
+      # Copy the current solution so every thread can modify it independently
+      solution_copies = [deepcopy(solution) for _ in range(cls.n_proc)]
 
-    logger.info("Split move generation into chunks of sizes %s", [len(c) for c in chunks])
+      # Split moves into chunks for pool to process
+      chunks = np.array_split(rects, cls.n_proc)
 
-    # Evaluate all rects to scored moves concurrently
-    with Pool(processes=cls.n_proc) as pool:
-      scored_moves = flatten(pool.starmap(cls.generate_moves_for_rects, zip(solution_copies, chunks)))
+      logger.info("Split move generation into chunks of sizes %s", [len(c) for c in chunks])
+
+      # Evaluate all rects to scored moves concurrently
+      with Pool(processes=cls.n_proc) as pool:
+        scored_moves = flatten(pool.starmap(cls.generate_moves_for_rects, zip(solution_copies, chunks)))
 
     logger.info("Explored %i neighbors", len(scored_moves))
     return scored_moves
@@ -131,25 +152,6 @@ class GeometricMove(Move):
     self.flip = flip
     self.old_x = None
     self.old_y = None
-
-  def is_boxcount_decreasing(self, solution: BoxSolution) -> bool:
-    '''Checks whether this move would decrease the overall box count.'''
-    # Get objects
-    from_box = solution.boxes[self.from_box_id]
-    to_box = solution.boxes[self.to_box_id]
-    rect_copy = deepcopy(from_box.rects[self.rect_id])
-
-    # Move rect to target location
-    rect_copy.move_to(self.new_x, self.new_y)
-
-    return all([
-      # Must be last rect of the origin box
-      len(from_box.rects) == 1,
-      # Must be moved to a different box
-      self.from_box_id != self.to_box_id,
-      # Must have space in the target box
-      rect_copy.get_all_coordinates() <= to_box.free_coords
-    ])
 
   def apply_to_solution(self, solution: BoxSolution) -> bool:
     '''
@@ -209,6 +211,7 @@ class GeometricMove(Move):
 
     # Remove it from last moved rect ids again
     solution.last_moved_rect_ids.pop()
+    rect.highlighted = False
 
     # Maybe the old box was deleted by the move? Otherwise just add it back
     if self.from_box_id not in solution.boxes.keys():
