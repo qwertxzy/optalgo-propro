@@ -29,11 +29,6 @@ class SimulatedAnnealing(OptimizationAlgorithm):
     self.temperature = START_TEMP
     self.inner_loop_counter = 0
 
-    # TODO: just set permissible overlap here, should be set by some kind of schedule?
-    #       can only be tested once neighborhood exploration speeds up..
-    if neighborhood_definition == GeometricOverlap:
-      self.problem.currently_permissible_overlap = 0.2
-
   def set_strategy(self, strategy: type[Neighborhood]):
     '''Sets the neighborhood definition.'''
     logger.info("Set the neighborhood definition to %s", strategy)

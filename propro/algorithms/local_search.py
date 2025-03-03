@@ -18,10 +18,6 @@ class LocalSearch(OptimizationAlgorithm):
   def __init__(self, problem, neighborhood_definition: Neighborhood = Geometric):
     super().__init__(problem)
     self.strategy = neighborhood_definition
-    # TODO: just set permissible overlap here, should be set by some kind of schedule?
-    #       can only be tested once neighborhood exploration speeds up..
-    if neighborhood_definition == GeometricOverlap:
-      self.problem.currently_permissible_overlap = 1.0
 
   def set_strategy(self, strategy: Neighborhood):
     '''Sets the neighborhood definition.'''
@@ -56,13 +52,5 @@ class LocalSearch(OptimizationAlgorithm):
 
     # Per definition the current solution will also be the best solution
     self.best_solution = self.problem.current_solution
-
-    # TODO: also not really something that should be handled in the search algorithm?
-    # -> Class can count the number of times tick has been called -> cooling schedule
-    # Adjust permissible overlap
-    if self.strategy == GeometricOverlap:
-      current_overlap = self.problem.current_solution.currently_permissible_overlap
-      new_overlap = max(0, current_overlap - 1  / self.problem.current_solution.get_score().box_count)
-      self.problem.current_solution.currently_permissible_overlap = new_overlap
 
     logger.info("Now at score %s", self.problem.current_solution.get_score())

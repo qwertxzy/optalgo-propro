@@ -46,10 +46,10 @@ class Box:
     for rect in rects:
       self.add_rect(rect)
 
-  def add_rect(self, rect: Rectangle) -> bool:
+  def add_rect(self, rect: Rectangle, check_overlap = True) -> bool:
     '''Tries to place a rectangle within this box. Will return false if unsuccessful.'''
     # If rects coordinates are not part of free cords, this won't fit
-    if not rect.get_all_coordinates() <= self.free_coords:
+    if check_overlap and not rect.get_all_coordinates() <= self.free_coords:
       return False
 
     # Add rect to internal dict
