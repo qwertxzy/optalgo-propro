@@ -26,7 +26,6 @@ class RunConfiguration:
   rect_y_size: range
   box_length: int
 
-
 def show_config_picker(
     algo_default: Optional[str] = None,
     mode_default: Optional[str] = None,
@@ -39,13 +38,12 @@ def show_config_picker(
   # Try and parse default mode for correct pre-selection
   algo = next(filter(lambda a: a.__name__ == algo_default, OptimizationAlgorithm.__subclasses__()), LocalSearch)
   mode = next(filter(lambda m: m.__name__ == mode_default, get_available_modes(algo)), get_available_modes(algo)[0])
-
   # Frame for the Solver specific options
   solver_layout = [
     [
       sg.Listbox([a.__name__ for a in OptimizationAlgorithm.__subclasses__()],
                  # Preselect the first in list
-                 default_values=algo_default if algo_default else [algo.__name__],
+                 default_values=[algo_default] if algo_default is not None else [algo.__name__],
                  k="algo",
                  select_mode="LISTBOX_SELECT_MODE_SINGLE",
                  size=(25,5),
@@ -54,7 +52,7 @@ def show_config_picker(
                  ),
                  # Just get modes for the same random algo as above
       sg.Listbox([m.__name__ for m in get_available_modes(algo)],
-                 default_values=mode.__name__ if mode else [mode.__name__],
+                 default_values=[mode_default] if mode_default is not None else [mode.__name__],
                  k="mode",
                  select_mode="LISTBOX_SELECT_MODE_SINGLE",
                  size=(25, 5),
@@ -62,6 +60,7 @@ def show_config_picker(
                  )
      ]
   ]
+
   solver_frame = sg.Frame("Optimization Algorithm", layout=solver_layout)
 
   # Frame for the problem specific options
