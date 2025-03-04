@@ -31,6 +31,8 @@ class GeometricOverlap(Neighborhood):
   call_count = 0
   '''Keeps track of how many times `get_neighbors` was called'''
 
+  # TODO: collapses just fine, but can't build up again..
+
   @classmethod
   def generate_moves_for_rects(cls, solution: BoxSolution, ids: list[tuple[int, int]]) -> list[ScoredMove]:
     '''
@@ -85,6 +87,11 @@ class GeometricOverlap(Neighborhood):
             # Box count could be none since the last overlap decrease made current_solution invalid
             if current_score.box_count is not None and current_score.box_count > score.box_count:
               return moves
+      # Bonus move! Put the rect into a new box at 0/0
+      new_box_id = max(solution.boxes.keys()) + 1
+      new_box_move = GeometricOverlapMove(rect_id, box_id, new_box_id, 0, 0, False)
+      new_box_score = solution.get_potential_score(new_box_move)
+      moves.append(ScoredMove(new_box_move, new_box_score))
     return moves
 
   @classmethod
@@ -93,7 +100,7 @@ class GeometricOverlap(Neighborhood):
     Calculates neighbors of a solution by geometric means
     Moves every rectangle in every box to every possible coordinate
     '''
-    logger.info("Calculating Geometric neighborhoods with overlap")
+    logger.info("Calculating Geometric neighborhoods with overlap %i", cls.call_count)
 
     # If this is the first time this gets called, set the solution's overlap to an allowed 100%
     if cls.call_count == 0:
@@ -101,10 +108,10 @@ class GeometricOverlap(Neighborhood):
 
     cls.call_count += 1
 
-    # Decrease allowed overlap after we made a move for every box
-    if cls.call_count >= len(solution.boxes):
+    # Decrease allowed overlap after we made a move for every rect
+    if cls.call_count >= sum(len(b.rects) for b in solution.boxes.values()):
       cls.call_count = 1
-      new_overlap = max(0.0, solution.currently_permissible_overlap - 0.1)
+      new_overlap = max(0.0, solution.currently_permissible_overlap - 0.05)
       logger.info("Updating permissible overlap to %f", new_overlap)
       solution.currently_permissible_overlap = new_overlap
 
@@ -191,9 +198,24 @@ class GeometricOverlapMove(Move):
     if self.flip:
       current_rect.flip()
 
-    # Add to new box without checking for overlap
-    new_box = solution.boxes[self.to_box_id]
-    new_box.add_rect(current_rect, check_overlap=False)
+    # Check if new box id is already in solution
+    if self.to_box_id in solution.boxes:
+      new_box = solution.boxes[self.to_box_id]
+      move_success = new_box.add_rect(current_rect, check_overlap=False)
+
+      if not move_success:
+        # Revert rect coordinates
+        current_rect.move_to(self.old_x, self.old_y)
+        if self.flip:
+          current_rect.flip()
+        # Add it back where it came from and return
+        current_box.add_rect(current_rect)
+        return False
+
+    # If it was not, create a new box
+    else:
+      new_box = Box(self.to_box_id, current_box.side_length, current_rect)
+      solution.boxes[self.to_box_id] = new_box
 
     # Highlight it as changed
     current_rect.highlighted = True
@@ -214,6 +236,10 @@ class GeometricOverlapMove(Move):
 
     # Remove rect from target box
     rect = solution.boxes.get(self.to_box_id).remove_rect(self.rect_id)
+
+    # If box was created by this move, delete it again
+    if len(solution.boxes[self.to_box_id].rects) == 0:
+      solution.boxes.pop(self.to_box_id)
 
     # Restore attributes
     rect.move_to(self.old_x, self.old_y)

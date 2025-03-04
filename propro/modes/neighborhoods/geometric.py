@@ -23,8 +23,6 @@ class Geometric(Neighborhood):
   n_proc = max(int(os.environ.get("OPTALGO_MAX_CPU", 0)), cpu_count())
   '''Number of processes the neighborhood searching should use'''
 
-  # TODO: Add the option to move a rect into a new box? Might be needed for simulated annealing
-
   @classmethod
   def generate_moves_for_rects(cls, solution: BoxSolution, ids: list[tuple[int, int]]) -> list[ScoredMove]:
     '''
@@ -39,7 +37,7 @@ class Geometric(Neighborhood):
       current_rect = current_box.rects[rect_id]
 
       # Iterate over every target box
-      for possible_box in solution.boxes.values():
+      for possible_box in list(solution.boxes.values()):
         # ... in any free coordinate within this box
         for (x, y) in list(possible_box.get_adjacent_coordinates()):
           # ... at any rotation
@@ -79,6 +77,11 @@ class Geometric(Neighborhood):
             # # If we have more than 5 rects to process, we are fine with finding a box-decreasing move
             if current_score.box_count > score.box_count:
               return moves
+      # Bonus move! Put the rect into a new box at 0/0
+      new_box_id = max(solution.boxes.keys()) + 1
+      new_box_move = GeometricMove(rect_id, box_id, new_box_id, 0, 0, False)
+      new_box_score = solution.get_potential_score(new_box_move)
+      moves.append(ScoredMove(new_box_move, new_box_score))
     return moves
 
   @classmethod
@@ -111,6 +114,8 @@ class Geometric(Neighborhood):
     scored_moves = []
     if prio_rect is not None:
       scored_moves = cls.generate_moves_for_rects(solution, [prio_rect])
+
+    # TODO: if prio_rect didn't return any moves, we are not looking for all rectangles!
 
     # If scored moves are empty either because there was no prio rect or because
     # the method didn't return any valid neighbors, do the expensive shaboingboing
@@ -172,17 +177,24 @@ class GeometricMove(Move):
     if self.flip:
       current_rect.flip()
 
-    new_box = solution.boxes[self.to_box_id]
-    move_success = new_box.add_rect(current_rect)
+    # Check if new box id is already in solution
+    if self.to_box_id in solution.boxes:
+      new_box = solution.boxes[self.to_box_id]
+      move_success = new_box.add_rect(current_rect)
 
-    if not move_success:
-      # Revert rect coordinates
-      current_rect.move_to(self.old_x, self.old_y)
-      if self.flip:
-        current_rect.flip()
-      # Add it back where it came from and return
-      current_box.add_rect(current_rect)
-      return False
+      if not move_success:
+        # Revert rect coordinates
+        current_rect.move_to(self.old_x, self.old_y)
+        if self.flip:
+          current_rect.flip()
+        # Add it back where it came from and return
+        current_box.add_rect(current_rect)
+        return False
+
+    # If it was not, create a new box
+    else:
+      new_box = Box(self.to_box_id, current_box.side_length, current_rect)
+      solution.boxes[self.to_box_id] = new_box
 
     # Highlight it as changed
     current_rect.highlighted = True
@@ -203,6 +215,10 @@ class GeometricMove(Move):
 
     # Remove rect from target box
     rect = solution.boxes.get(self.to_box_id).remove_rect(self.rect_id)
+
+    # If box was created by this move, delete it again
+    if len(solution.boxes[self.to_box_id].rects) == 0:
+      solution.boxes.pop(self.to_box_id)
 
     # Restore attributes
     rect.move_to(self.old_x, self.old_y)
