@@ -26,23 +26,22 @@ NUM_TICKS = 90
 ALGO = LocalSearch
 MODE = Geometric
 
-# Construct basic objects
+if __name__ == "__main__":
+  # Construct basic objects
+  my_problem = BoxProblem(BOX_LENGTH, RECT_NUMBER, RECT_X, RECT_Y)
+  my_algo = ALGO(my_problem, MODE)
 
-my_problem = BoxProblem(BOX_LENGTH, RECT_NUMBER, RECT_X, RECT_Y)
-my_algo = ALGO(my_problem, MODE)
+  # Profile a few ticks of the algorithm
+  pr = cProfile.Profile()
+  pr.enable()
 
-# Profile a few ticks of the algorithm
+  try:
+    for i in range(NUM_TICKS):
+      logger.info("Iteration %i", i)
+      my_algo.tick()
+  except KeyboardInterrupt:
+    pass
 
-pr = cProfile.Profile()
-pr.enable()
-
-try:
-  for i in range(NUM_TICKS):
-    logger.info("Iteration %i", i)
-    my_algo.tick()
-except KeyboardInterrupt:
-  pass
-
-pr.disable()
-ps = pstats.Stats(pr).sort_stats(pstats.SortKey.TIME)
-ps.print_stats()
+  pr.disable()
+  ps = pstats.Stats(pr).sort_stats(pstats.SortKey.TIME)
+  ps.print_stats()
