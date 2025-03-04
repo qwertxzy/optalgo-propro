@@ -91,8 +91,6 @@ class PermutationMove(Move):
     '''
     boxes = [Box(0, box_length)]
 
-    # TODO: add upwards packing for every rect placed
-
     # Take rects one by one and put them into a new box..
     # # Once one boundary is crossed, start with a new box
     boxes = [Box(0, box_length)]
@@ -104,8 +102,16 @@ class PermutationMove(Move):
     for rect in rects:
       # Case 1: Rect fits into this row
       if next_x + rect.width <= box_length and next_y + rect.height <= box_length:
+        # current_y is the safe route, but maybe we can pack it upwards?
+        rect_top_edge = [(x, current_y) for x in range(next_x, next_x + rect.width)]
+        while set(rect_top_edge) <= current_box.free_coords:
+          # Decrease edge by 1
+          rect_top_edge = [(x, y - 1) for (x, y) in rect_top_edge]
+        # This will overshoot by 1, so rect's y coordinate is that of top edge + 1
+        rect_y = rect_top_edge[0][1] + 1
+
         # Update this rect's coordinates
-        rect.move_to(next_x, current_y)
+        rect.move_to(next_x, rect_y)
         current_box.add_rect(rect)
         # Also update the next corodinate
         next_x += rect.width
@@ -143,15 +149,15 @@ class PermutationMove(Move):
       ) = (
         encoded_rects[self.second_idx], encoded_rects[self.first_idx]
       )
-      encoded_rects[self.first_idx].highlighted = True
-      encoded_rects[self.second_idx].highlighted = True
+      encoded_rects[self.first_idx].highlighted ^= True
+      encoded_rects[self.second_idx].highlighted ^= True
 
     # Flip
     if self.flip:
       this_rect = encoded_rects[self.first_idx]
       this_rect.width, this_rect.height = this_rect.height, this_rect.width
       # Highlight it as changed
-      this_rect.highlighted = True
+      this_rect.highlighted ^= True
 
     # Decode and modify in-place
     solution.boxes = { box.id: box for box in self.decode_rect_list(encoded_rects, solution.side_length) }
