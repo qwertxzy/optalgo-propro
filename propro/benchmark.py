@@ -82,6 +82,7 @@ if __name__ == "__main__":
   for Algorithm in OptimizationAlgorithm.__subclasses__():
     # Loop over every mode for this algorithm
     for Mode in get_available_modes(Algorithm):
+      logging.info(f"Running {Algorithm.__name__} with {Mode.__name__}")
 
       # Initialize problem
       optimization_problem = BoxProblem(
@@ -98,6 +99,7 @@ if __name__ == "__main__":
       # Run for num ticks
       start_time = time.perf_counter()
       for i in range(args.tick_number):
+        logging.info(f"Iteration {i}")
         optimization_algorithm.tick()
         last_scores.append(optimization_algorithm.problem.current_solution.get_score())
         # Break loop if algortihm has been stagnant for the last maxlen iterations
@@ -112,6 +114,9 @@ if __name__ == "__main__":
         stop_time - start_time,
         optimization_algorithm.problem.current_solution.get_score()
       ))
+
+      logging.info(f"Finished in {stop_time - start_time :0.6f} seconds")
+      logging.info(f"Score: {optimization_algorithm.problem.current_solution.get_score().box_count}")
 
   # Print results
   table = Table("Algorithm", "Mode", "Time (s)", "Score (#Boxes)")
