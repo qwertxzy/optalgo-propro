@@ -40,9 +40,15 @@ class Box:
     self.rects = {}
     self.free_coords = set(product(range(side_length), range(side_length)))
     self.incident_edge_count = 0
-    self.adjacent_coordinates = set()
     self.dirty = True
     self.needs_redraw = True
+
+    # Init with top and left edge
+    self.adjacent_coordinates = set(chain(
+      product(range(self.side_length + 1), [0]),
+      product([0], range(self.side_length + 1))
+    ))
+
     for rect in rects:
       self.add_rect(rect)
 
@@ -103,26 +109,6 @@ class Box:
     if self.dirty:
       self.recalculate_stats()
     return self.incident_edge_count
-
-  # def __recalculate_adjacent_coordinates(self):
-  #   '''
-  #   Recalculates the coordinates adjacent to the rectangles in this box.
-  #   '''
-  #   # Clear the set
-  #   self.adjacent_coordinates.clear()
-
-  #   # Add the left and top edge of the box
-  #   self.adjacent_coordinates |= set(chain(
-  #     product(range(self.side_length + 1), [0]),
-  #     product([0], range(self.side_length + 1))
-  #   ))
-
-  #   # Xor each rects edges to the box set, will remove covered edges between two rects
-  #   for rect in self.rects.values():
-  #     self.adjacent_coordinates ^= rect.get_edges()
-  #   # ..but that would falsely remove corners where 3 or 4 can intersect, so add these back
-  #   for rect in self.rects.values():
-  #     self.adjacent_coordinates |= rect.get_corners()
 
   def __recalculate_incident_edge_count(self):
     '''

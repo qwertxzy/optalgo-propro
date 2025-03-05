@@ -6,7 +6,7 @@ import logging
 import random
 from math import exp
 
-from modes import Neighborhood, Geometric, GeometricOverlap, ScoredMove
+from modes import Neighborhood, Geometric, ScoredMove
 
 from .base import OptimizationAlgorithm
 
@@ -33,12 +33,11 @@ class SimulatedAnnealing(OptimizationAlgorithm):
     '''Sets the neighborhood definition.'''
     logger.info("Set the neighborhood definition to %s", strategy)
     self.strategy = strategy
-    # See todo in __init__
-    if strategy == GeometricOverlap:
-      self.problem.currently_permissible_overlap = 0.2
+
 
   def __accept_solution(self, scored_move: ScoredMove):
     '''Checks whether a new solution shall be accepted or not'''
+    # NOTE: Not generic in the sense of the assignment, but needs to work on all score fields
     current_score = self.problem.current_solution.get_score()
     # If score is better, apply move
     if current_score > scored_move.score:
@@ -70,8 +69,9 @@ class SimulatedAnnealing(OptimizationAlgorithm):
     self.inner_loop_counter = 0
 
     # .. and update the temperature according to the schedule
-    # TODO: what's a good function here?
-    self.temperature = self.temperature ** 0.995
+    # Adaptive exponential cooling?
+    cooling_rate = 0.99 - (0.1 * (self.inner_loop_counter / TEMP_STEPS))
+    self.temperature *= cooling_rate
     logger.info("Temperature set to %f", self.temperature)
 
   def tick(self):

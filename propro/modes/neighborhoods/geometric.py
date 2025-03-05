@@ -101,12 +101,16 @@ class Geometric(Neighborhood):
     for box_id, box in solution.boxes.items():
       if prio_rect is not None:
         break
-      # If we have a box with only one rect, go into quick mode
+      # Go over all rects in this box
       for rect_id in box.rects.keys():
+        # If rect was recently moved, ignore it
+        if rect_id in solution.last_moved_rect_ids:
+          continue
+        # If it is the only rect in this box, set it as prio rect
         if len(box.rects) == 1:
           prio_rect = (box_id, rect_id)
-          break
-        if rect_id not in solution.last_moved_rect_ids:
+        # Else append it to the overall list of rectangles
+        else:
           rects.append((box_id, rect_id))
 
     # If we have a prio rect, generate moves only for this in hopes of
@@ -114,8 +118,6 @@ class Geometric(Neighborhood):
     scored_moves = []
     if prio_rect is not None:
       scored_moves = cls.generate_moves_for_rects(solution, [prio_rect])
-
-    # TODO: if prio_rect didn't return any moves, we are not looking for all rectangles!
 
     # If scored moves are empty either because there was no prio rect or because
     # the method didn't return any valid neighbors, do the expensive shaboingboing
