@@ -16,6 +16,13 @@ from ..move import ScoredMove, Move
 
 logger = logging.getLogger(__name__)
 
+#TODO: Currently the permutation neighborhood sometimes does not find an optimal solution.
+# 1)this could be fixed by taking all the boxes with only one rectangle in it and place it at the front.
+# 1 does not work as it screas up already made moves.
+# 2) this could be fixed by not swapping rectangles if we do a fillup, but put the inserting rectangle at this position. 
+#    By this the recond part will be moved to the end of the list.
+#    BUT: it might violate the permutation rule, as this is almost like a swap.
+
 class Permutation(Neighborhood):
   '''Implementation for a permutation-based neighborhood'''
 
