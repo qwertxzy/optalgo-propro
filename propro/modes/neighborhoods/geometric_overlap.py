@@ -10,6 +10,7 @@ import numpy as np
 
 from problem import BoxSolution
 from geometry import Box
+from heuristic import GenericHeuristic
 from utils import flatten
 
 from .neighborhood import Neighborhood
@@ -39,7 +40,7 @@ class GeometricOverlap(Neighborhood):
     Generates a list of scoreed moves for the given rects in `solution`.
     IDs must be given as a list `(bod_id, rect_id)`.
     '''
-    current_score = solution.get_heuristic_score()
+    current_score = cls.generate_heuristic(solution)
     moves = []
 
     for (box_id, rect_id) in ids:
@@ -76,10 +77,10 @@ class GeometricOverlap(Neighborhood):
               continue
 
             move = GeometricOverlapMove(current_rect.id, current_box.id, possible_box.id, x, y, is_flipped)
-            score = solution.calculate_heuristic_score(move)
+            score = cls.generate_heuristic(solution, move)
 
             # Skip invalid moves
-            if score.box_count is None:
+            if not score.is_valid():
               continue
 
             moves.append(ScoredMove(move, score))
@@ -90,7 +91,7 @@ class GeometricOverlap(Neighborhood):
       # Bonus move! Put the rect into a new box at 0/0
       new_box_id = max(solution.boxes.keys()) + 1
       new_box_move = GeometricOverlapMove(rect_id, box_id, new_box_id, 0, 0, False)
-      new_box_score = solution.calculate_heuristic_score(new_box_move)
+      new_box_score = cls.generate_heuristic(solution, new_box_move)
       moves.append(ScoredMove(new_box_move, new_box_score))
     return moves
 
@@ -155,6 +156,31 @@ class GeometricOverlap(Neighborhood):
 
     logger.info("Explored %i neighbors", len(scored_moves))
     return scored_moves
+  
+
+  @classmethod
+  def generate_heuristic(self, solution: BoxSolution, move: Move = None) -> GenericHeuristic:
+    '''
+    Calculates the heuristic score of the solution after a given move.
+    Passing no move will return the heuristic score of the solution itself.
+    '''
+    move_sucessful = True
+
+    # Perform move
+    if move is not None:
+      move_sucessful = move.apply_to_solution(solution)
+
+    # If move was unsuccessful, it resulted in an invalid solution
+    if not move_sucessful:
+      return GenericHeuristic(None, None, None)
+
+    # If move is valid, construct a proper score,
+    heuristic = GenericHeuristic(len(solution.boxes), solution.compute_box_entropy(), solution.compute_incident_edge_coordinates())
+
+    # Undo the move operation
+    if move is not None:
+      move.undo(solution)
+    return heuristic
 
 @dataclass
 class GeometricOverlapMove(Move):
