@@ -18,6 +18,8 @@ from ..move import Move, ScoredMove
 
 logger = logging.getLogger(__name__)
 
+#TODO: use the Box.fit_rect_compress method to check if a rect fits into a box
+
 class Geometric(Neighborhood):
   '''Implementation for a geometry-based neighborhood'''
 
