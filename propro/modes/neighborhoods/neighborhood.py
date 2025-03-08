@@ -35,7 +35,7 @@ class Neighborhood(ABC):
 
   @classmethod
   @abstractmethod
-  def heuristic_score(cls, solution: BoxSolution, move: Move) -> float:
+  def generate_heuristic(cls, solution: BoxSolution, move: Move) -> float:
     '''
     Calculates a heuristic score for a given solution.
     '''
