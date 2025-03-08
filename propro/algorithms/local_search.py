@@ -5,7 +5,7 @@ Implementation of a local search algorithm
 import logging
 import random
 
-from modes import Neighborhood, Geometric, GeometricOverlap
+from modes import Neighborhood, Geometric
 from .base import OptimizationAlgorithm
 
 logger = logging.getLogger(__name__)
@@ -23,9 +23,6 @@ class LocalSearch(OptimizationAlgorithm):
     '''Sets the neighborhood definition.'''
     logger.debug("Set the neighborhood definition to %s", strategy)
     self.strategy = strategy
-    # See todo in __init__
-    if self.strategy == GeometricOverlap:
-      self.problem.currently_permissible_overlap = 1.0
 
   def tick(self):
     # Get all possible neighbors
