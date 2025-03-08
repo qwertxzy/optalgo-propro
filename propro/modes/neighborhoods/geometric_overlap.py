@@ -39,7 +39,7 @@ class GeometricOverlap(Neighborhood):
     Generates a list of scoreed moves for the given rects in `solution`.
     IDs must be given as a list `(bod_id, rect_id)`.
     '''
-    current_score = solution.get_score()
+    current_score = solution.get_heuristic_score()
     moves = []
 
     for (box_id, rect_id) in ids:
@@ -76,7 +76,7 @@ class GeometricOverlap(Neighborhood):
               continue
 
             move = GeometricOverlapMove(current_rect.id, current_box.id, possible_box.id, x, y, is_flipped)
-            score = solution.get_potential_score(move)
+            score = solution.calculate_heuristic_score(move)
 
             # Skip invalid moves
             if score.box_count is None:
@@ -90,7 +90,7 @@ class GeometricOverlap(Neighborhood):
       # Bonus move! Put the rect into a new box at 0/0
       new_box_id = max(solution.boxes.keys()) + 1
       new_box_move = GeometricOverlapMove(rect_id, box_id, new_box_id, 0, 0, False)
-      new_box_score = solution.get_potential_score(new_box_move)
+      new_box_score = solution.calculate_heuristic_score(new_box_move)
       moves.append(ScoredMove(new_box_move, new_box_score))
     return moves
 

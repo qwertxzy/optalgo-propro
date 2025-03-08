@@ -68,7 +68,7 @@ def draw_solution(graph: sg.Graph, solution: BoxSolution, scaling_factor: float,
         color = 'red'
       graph.draw_rectangle(
         top_left=(rect_left, rect_top),
-        bottom_right=(rect_left + rect.width * scaling_factor, rect_top + rect.height * scaling_factor),
+        bottom_right=(rect_left + rect.get_width() * scaling_factor, rect_top + rect.get_height() * scaling_factor),
         fill_color=color
       )
 
@@ -150,7 +150,7 @@ def show_app(config: RunConfiguration):
   redraw_complete_event = Event()
 
   # Keep track of last drawn to erase only when boxcount changes
-  last_box_count = optimization_algorithm.problem.current_solution.get_score().box_count
+  last_box_count = optimization_algorithm.problem.current_solution.get_heuristic_score().box_count
 
   while True:
     event, values = window.read(timeout=5)
@@ -178,9 +178,9 @@ def show_app(config: RunConfiguration):
     if tick_complete_event.is_set():
       current_solution = optimization_algorithm.problem.current_solution
       # Check if we need to redraw the whole solution because box count changed
-      if current_solution.get_score().box_count != last_box_count:
+      if current_solution.get_heuristic_score().box_count != last_box_count:
         erase = True
-        last_box_count = current_solution.get_score().box_count
+        last_box_count = current_solution.get_heuristic_score().box_count
       else:
         erase = False
       # Actually draw
