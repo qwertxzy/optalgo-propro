@@ -79,6 +79,10 @@ class Rectangle:
     '''Returns the height of the rectangle'''
     return self.height
   
+  def set_box_id(self, box_id: int):
+    '''Set the box id of this rectangle'''
+    self.box_id = box_id
+  
 
   def get_all_coordinates(self) -> set[tuple[int, int]]:
     '''Returns all possible points of this rect.'''

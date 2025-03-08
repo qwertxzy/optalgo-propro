@@ -57,7 +57,7 @@ class Box:
     '''
     Sets the box id of this box.
     '''
-    self.id
+    self.id = b_id
     for rect in self.rects.values():
       rect.set_box_id(b_id)
 
