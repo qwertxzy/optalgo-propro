@@ -101,7 +101,7 @@ if __name__ == "__main__":
       for i in range(args.tick_number):
         logging.info(f"Iteration {i}")
         optimization_algorithm.tick()
-        last_scores.append(optimization_algorithm.problem.current_solution.get_score())
+        last_scores.append(optimization_algorithm.problem.current_solution.get_heuristic_score())
         # Break loop if algortihm has been stagnant for the last maxlen iterations
         if last_scores.count(last_scores[0]) == last_scores.maxlen:
           break
@@ -112,11 +112,11 @@ if __name__ == "__main__":
         Algorithm.__name__,
         Mode.__name__,
         stop_time - start_time,
-        optimization_algorithm.problem.current_solution.get_score()
+        optimization_algorithm.problem.current_solution.get_heuristic_score()
       ))
 
       logging.info(f"Finished in {stop_time - start_time :0.6f} seconds")
-      logging.info(f"Score: {optimization_algorithm.problem.current_solution.get_score().box_count}")
+      logging.info(f"Score: {optimization_algorithm.problem.current_solution.get_heuristic_score().box_count}")
 
   # Print results
   table = Table("Algorithm", "Mode", "Time (s)", "Score (#Boxes)")

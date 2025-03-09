@@ -12,6 +12,7 @@ from math import log2
 from collections import deque
 
 from geometry import Rectangle, Box
+from heuristic import AbstractHeuristic
 
 @dataclass
 class Score:
@@ -30,34 +31,6 @@ class Score:
   def __iter__(self):
     return iter((self.box_count, self.box_entropy, self.incident_edges))
 
-  def __repr__(self):
-    return f"Score({self.box_count=}, {self.box_entropy=}, {self.incident_edges=})"
-
-  def __lt__(self, other: Score):
-    # Handle invalid solutions first
-    if self.box_count is None and other.box_count is None:
-      return True
-    if other.box_count is None:
-      return True
-    if self.box_count is None:
-      return False
-
-    # Compare in order of priority
-    if self.box_count != other.box_count:
-      return self.box_count < other.box_count
-    if self.box_entropy != other.box_entropy:
-      return self.box_entropy < other.box_entropy
-    return self.incident_edges > other.incident_edges
-
-  def __eq__(self, other: Score):
-    return all([
-      self.box_count == other.box_count,
-      self.box_entropy == other.box_entropy,
-      self.incident_edges == other.incident_edges
-    ])
-
-  def __le__(self, other: Score):
-    return self < other or self == other
 
 class Problem(ABC):
   '''
@@ -70,7 +43,7 @@ class Solution(ABC):
   Abstract base class for a generic optimization solution.
   '''
   @abstractmethod
-  def get_score(self) -> Score:
+  def get_heuristic_score(self) -> AbstractHeuristic:
     '''
     Computes and returns the score of this solution.
     '''
@@ -94,7 +67,7 @@ class BoxProblem(Problem):
       # Get ourselves a nice rect tangle
       width = choice(w_range)
       height = choice(h_range)
-      rect = Rectangle(0, 0, width, height, n)
+      rect = Rectangle(0, 0, width, height, n, n)
 
       # Now construct a new box and put just this one in it
       boxes.append(Box(n, box_length, rect))
@@ -130,29 +103,30 @@ class BoxSolution(Solution):
       self.boxes[box.id] = box
 
   def __repr__(self):
-    s = f"Score: {self.get_score()}\n"
+    s = f"Heuristic Score: {self.get_heuristic_score()}\n"
     s += f"Allowed Overlap: {self.currently_permissible_overlap}\n"
     s += '\n'.join([str(box) for box in self.boxes.values()])
     return s
 
-  def get_potential_score(self, move) -> Score:
+  def calculate_heuristic_score(self, move) -> AbstractHeuristic:
     '''
-    Calculates the potential score of the solution after a given move.
+    Calculates the heuristic score of the solution after a given move.
     '''
     # Perform move
     move_sucessful = move.apply_to_solution(self)
 
     # If move was unsuccessful, it resulted in an invalid solution
     if not move_sucessful:
-      return Score(None, None, None)
+      return AbstractHeuristic(None, None, None)
 
     # If move is valid, construct a proper score,
     score = Score(len(self.boxes), self.compute_box_entropy(), self.compute_incident_edge_coordinates())
 
     # Undo the move operation
     move.undo(self)
-
     return score
+  
+
 
   def compute_incident_edge_coordinates(self) -> int:
     '''number of coordinates that at least 2 rectangles share.'''
@@ -172,7 +146,7 @@ class BoxSolution(Solution):
     return entropy
 
   # TODO: don't re-calculate this every time
-  def get_score(self) -> Score:
+  def get_heuristic_score(self) -> Score:
     if not self.is_valid():
       return Score(None, None, None)
 
@@ -187,7 +161,7 @@ class BoxSolution(Solution):
     for box in self.boxes.values():
       # Easy case: Rect is out-of-bounds
       for rect in box.rects.values():
-        if rect.get_x() + rect.width > self.side_length or rect.get_y() + rect.height > self.side_length:
+        if rect.get_x() + rect.get_width() > self.side_length or rect.get_y() + rect.get_height() > self.side_length:
           return False
 
       # Harder case: Rect may overlap with any other in this box

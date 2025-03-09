@@ -38,7 +38,7 @@ class SimulatedAnnealing(OptimizationAlgorithm):
   def __accept_solution(self, scored_move: ScoredMove):
     '''Checks whether a new solution shall be accepted or not'''
     # NOTE: Not generic in the sense of the assignment, but needs to work on all score fields
-    current_score = self.problem.current_solution.get_score()
+    current_score = self.problem.current_solution.get_heuristic_score()
     # If score is better, apply move
     if current_score > scored_move.score:
       scored_move.move.apply_to_solution(self.problem.current_solution)
@@ -93,4 +93,4 @@ class SimulatedAnnealing(OptimizationAlgorithm):
     # Update temperature
     self.__update_temperature()
 
-    logger.info("Now at score %s", self.problem.current_solution.get_score())
+    logger.info("Now at score %s", self.problem.current_solution.get_heuristic_score())

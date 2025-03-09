@@ -9,6 +9,7 @@ import numpy as np
 
 from problem import BoxSolution
 from geometry import Box
+from heuristic import GenericHeuristic
 from utils import flatten
 
 
@@ -16,6 +17,8 @@ from .neighborhood import Neighborhood
 from ..move import Move, ScoredMove
 
 logger = logging.getLogger(__name__)
+
+#TODO: use the Box.fit_rect_compress method to check if a rect fits into a box
 
 class Geometric(Neighborhood):
   '''Implementation for a geometry-based neighborhood'''
@@ -29,7 +32,7 @@ class Geometric(Neighborhood):
     Generates a list of scoreed moves for the given rects in `solution`.
     IDs must be given as a list `(bod_id, rect_id)`.
     '''
-    current_score = solution.get_score()
+    current_score = cls.generate_heuristic(solution)
     moves = []
 
     for (box_id, rect_id) in ids:
@@ -66,23 +69,24 @@ class Geometric(Neighborhood):
               continue
 
             move = GeometricMove(current_rect.id, current_box.id, possible_box.id, x, y, is_flipped)
-            score = solution.get_potential_score(move)
+            score = cls.generate_heuristic(solution, move)
 
             # Skip invalid moves
-            if score.box_count is None:
+            if not score.is_valid():
               continue
 
             moves.append(ScoredMove(move, score))
 
             # # If we have more than 5 rects to process, we are fine with finding a box-decreasing move
-            if current_score.box_count > score.box_count:
+            if score < current_score:
               return moves
       # Bonus move! Put the rect into a new box at 0/0
       new_box_id = max(solution.boxes.keys()) + 1
       new_box_move = GeometricMove(rect_id, box_id, new_box_id, 0, 0, False)
-      new_box_score = solution.get_potential_score(new_box_move)
+      new_box_score = cls.generate_heuristic(solution, new_box_move)
       moves.append(ScoredMove(new_box_move, new_box_score))
     return moves
+  
 
   @classmethod
   def get_neighbors(cls, solution: BoxSolution) -> list[ScoredMove]:
@@ -136,6 +140,30 @@ class Geometric(Neighborhood):
 
     logger.info("Explored %i neighbors", len(scored_moves))
     return scored_moves
+  
+  @classmethod
+  def generate_heuristic(self, solution: BoxSolution, move: Move = None) -> GenericHeuristic:
+    '''
+    Calculates the heuristic score of the solution after a given move.
+    Passing no move will return the heuristic score of the solution itself.
+    '''
+    move_sucessful = True
+
+    # Perform move
+    if move is not None:
+      move_sucessful = move.apply_to_solution(solution)
+
+    # If move was unsuccessful, it resulted in an invalid solution
+    if not move_sucessful:
+      return GenericHeuristic(None, None, None)
+
+    # If move is valid, construct a proper score,
+    heuristic = GenericHeuristic(len(solution.boxes), solution.compute_box_entropy(), solution.compute_incident_edge_coordinates())
+
+    # Undo the move operation
+    if move is not None:
+      move.undo(solution)
+    return heuristic
 
 @dataclass
 class GeometricMove(Move):

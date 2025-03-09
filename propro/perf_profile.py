@@ -1,5 +1,6 @@
 import logging
 import cProfile
+import subprocess
 import pstats
 import random
 
@@ -16,12 +17,12 @@ random.seed(1337)
 
 # Set your values here
 
-RECT_NUMBER = 100
+RECT_NUMBER = 1000
 RECT_X = range(1, 16)
 RECT_Y = range(1, 16)
 BOX_LENGTH = 15
 
-NUM_TICKS = 90
+NUM_TICKS = 1000
 
 ALGO = LocalSearch
 MODE = Geometric
@@ -77,3 +78,5 @@ if __name__ == "__main__":
   ### Results of the optimization steps
   ## callgraph_LocalSearch_Permutation_100rects_10ticks:
     # initial runtime: 40.6s
+    # in parallel: 25.564 seconds
+
