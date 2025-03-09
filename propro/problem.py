@@ -4,6 +4,7 @@ concrete implementation for the box-rectangle problem given.
 '''
 
 from __future__ import annotations
+from typing import Any
 from abc import ABC, abstractmethod
 from random import choice
 from itertools import combinations
@@ -32,6 +33,12 @@ class Solution(ABC):
   def is_valid(self) -> bool:
     '''
     Checks whether this solution is valid in the first place.
+    '''
+
+  @abstractmethod
+  def to_greedy_queue(self) -> list[Any]:
+    '''
+    Deconstructs this solution into something empty and returns a list of objects to be processed.
     '''
 
 class BoxProblem(Problem):

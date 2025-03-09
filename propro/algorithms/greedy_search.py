@@ -7,8 +7,6 @@ from modes import SelectionSchema, SelectionMove
 from problem import Problem
 from .base import OptimizationAlgorithm
 
-#TODO: Needs to be optimized, might want to use box.fit_rect_compress() in its selection schemas.
-
 class GreedySearch(OptimizationAlgorithm):
   '''
   Implements a greedy selection scheme for the solution space

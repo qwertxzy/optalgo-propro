@@ -63,6 +63,10 @@ class BySpaceSelection(SelectionSchema):
     '''
     # Step 1: Go over all minimal coordinates
     for box in partial_solution.boxes.values():
+      # If box is full, skip it
+      if len(box.get_free_coordinates()) == 0:
+        continue
+
       for coordinate in cls.find_minimal_coordinates(box):
         # Step 2: Expand coordinate in x/y directions to find a theoretically ideal rectangle
         bottom_right_coordinate = cls.expand_coordinate(coordinate, box.get_free_coordinates())
