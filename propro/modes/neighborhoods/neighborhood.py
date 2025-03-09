@@ -1,22 +1,17 @@
 '''
 Contains a basic neighborhood definition that must be inherited from
 '''
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 from problem import BoxSolution
 from ..move import Move, ScoredMove
+from ..mode import Mode
 
-
-class Neighborhood(ABC):
+class Neighborhood(Mode):
   '''Abstract neighborhood base class'''
 
   #TODO: place the abstract heuristic score stuff here.
   # Now it is in the problem.py. But it is mode-specific, so it should be here.
-
-  @classmethod
-  @abstractmethod
-  def initialize(cls, solution: BoxSolution) -> BoxSolution:
-    '''Initializes the neighborhood for the given solution.'''
 
   @classmethod
   @abstractmethod

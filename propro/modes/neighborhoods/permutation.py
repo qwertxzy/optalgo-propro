@@ -26,7 +26,6 @@ class Permutation(Neighborhood):
 
   # n_proc = max(int(os.environ.get("OPTALGO_MAX_CPU", 0)), cpu_count())
 
-  # TODO: call this when running with permutation algorithm
   @classmethod
   def initialize(cls, solution: BoxSolution) -> BoxSolution:
     '''Initializes the neighborhood by returning the initial solution'''
