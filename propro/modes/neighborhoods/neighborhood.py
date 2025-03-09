@@ -10,12 +10,13 @@ from ..move import Move, ScoredMove
 class Neighborhood(ABC):
   '''Abstract neighborhood base class'''
 
-  #TODO: place the abstract heuristic score stuff here. Now it is in the problem.py. But it is mode-specific, so it should be here.
-  
+  #TODO: place the abstract heuristic score stuff here.
+  # Now it is in the problem.py. But it is mode-specific, so it should be here.
+
   @classmethod
+  @abstractmethod
   def initialize(cls, solution: BoxSolution) -> BoxSolution:
     '''Initializes the neighborhood for the given solution.'''
-    pass
 
   @classmethod
   @abstractmethod

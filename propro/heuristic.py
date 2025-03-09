@@ -1,3 +1,4 @@
+from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
@@ -6,33 +7,33 @@ from geometry.rectangle import Rectangle
 
 @dataclass
 class AbstractHeuristic(ABC):
-    '''
-    Represents the score of a solution.
-    '''
+  '''
+  Represents the score of a solution.
+  '''
 
-    @abstractmethod
-    def is_valid(self) -> bool:
-        pass
+  @abstractmethod
+  def is_valid(self) -> bool:
+    '''Returns true if this is the score of a valid solution.'''
 
-    @abstractmethod
-    def __iter__(self):
-        pass
+  @abstractmethod
+  def __iter__(self):
+    pass
 
-    @abstractmethod
-    def __repr__(self):
-        pass
+  @abstractmethod
+  def __repr__(self):
+    pass
 
-    @abstractmethod
-    def __lt__(self, other: 'AbstractHeuristic'):
-        pass
+  @abstractmethod
+  def __lt__(self, other: 'AbstractHeuristic'):
+    pass
 
-    @abstractmethod
-    def __eq__(self, other: 'AbstractHeuristic'):
-        pass
+  @abstractmethod
+  def __eq__(self, other: 'AbstractHeuristic'):
+    pass
 
-    @abstractmethod
-    def __le__(self, other: 'AbstractHeuristic'):
-        pass
+  @abstractmethod
+  def __le__(self, other: 'AbstractHeuristic'):
+    pass
 
 
 @dataclass
@@ -58,7 +59,7 @@ class GenericHeuristic(AbstractHeuristic):
   def __repr__(self):
     return f"GenericHeuristic({self.box_count=}, {self.box_entropy=}, {self.incident_edges=})"
 
-  def __lt__(self, other: 'GenericHeuristic'):
+  def __lt__(self, other: GenericHeuristic):
     # Handle invalid solutions first
     if self.box_count is None and other.box_count is None:
       return True
@@ -74,29 +75,34 @@ class GenericHeuristic(AbstractHeuristic):
       return self.box_entropy < other.box_entropy
     return self.incident_edges > other.incident_edges
 
-  def __eq__(self, other: 'GenericHeuristic'):
+  def __eq__(self, other: GenericHeuristic):
     return all([
       self.box_count == other.box_count,
       self.box_entropy == other.box_entropy,
       self.incident_edges == other.incident_edges
     ])
 
-  def __le__(self, other: 'GenericHeuristic'):
+  def __le__(self, other: GenericHeuristic):
     return self < other or self == other
-  
+
 
 @dataclass
 class PermutationHeuristic(AbstractHeuristic):
-   
-
+  '''
+  Specific heuristic implementation for the permutation neighborhood
+  '''
   __size_difference: int
   __is_fillup: bool = False
   __fillup_box_id: int = 0
 
   '''Difference in size between the two rectangles that are swapped. The Higher the better.'''
 
-  def __init__(self, rect_A: 'Rectangle', rect_B: 'Rectangle', is_fillup: bool = False, box_size: int = 0):
-    ''' Rectangles A and B are swapped. The larger the difference, the better. Benefits only if the smaller rectangle is moved to the box with the smaller ID. A negative value indicates that the swap is not beneficial.'''
+  def __init__(self, rect_A: Rectangle, rect_B: Rectangle, is_fillup: bool = False, box_size: int = 0):
+    '''
+    Rectangles A and B are swapped. The larger the difference, the better.
+    Benefits only if the smaller rectangle is moved to the box with the smaller ID.
+    A negative value indicates that the swap is not beneficial.
+    '''
     if rect_A.box_id > rect_B.box_id:
       rect_A, rect_B = rect_B, rect_A
     self.__size_difference = rect_B.get_area() - rect_A.get_area()
@@ -107,14 +113,16 @@ class PermutationHeuristic(AbstractHeuristic):
 
   def __iter__(self):
     return iter((self.__size_difference, self.__is_fillup, self.__fillup_box_id))
-  
+
   def __repr__(self):
     return f"PermutationHeuristic({self.__size_difference=}, {self.__is_fillup=}, {self.__fillup_box_id=})"
-  
-  def __lt__(self, other: 'PermutationHeuristic'):
-    '''The higher the size difference, the better.
-    If fillup is true, the lower the box id, the better. 
-    If box id is equal, the higher the size difference, the better.'''
+
+  def __lt__(self, other: PermutationHeuristic):
+    '''
+    The higher the size difference, the better.
+    If fillup is true, the lower the box id, the better.
+    If box id is equal, the higher the size difference, the better.
+    '''
     if self.__is_fillup:
       if other.__is_fillup:
         if self.__fillup_box_id == other.__fillup_box_id:
@@ -122,15 +130,15 @@ class PermutationHeuristic(AbstractHeuristic):
         return self.__fillup_box_id < other.__fillup_box_id
       return True
     return self.__size_difference > other.__size_difference
-  
-  def __eq__(self, other: 'PermutationHeuristic'):
+
+  def __eq__(self, other: PermutationHeuristic):
     return all([
       self.__size_difference == other.__size_difference,
       self.__is_fillup == other.__is_fillup,
       self.__fillup_box_id == other.__fillup_box_id
     ])
-  
-  def __le__(self, other: 'PermutationHeuristic'):
+
+  def __le__(self, other: PermutationHeuristic):
     '''The higher the size difference, the better.
     If fillup is true, the lower the box id, the better.
     If box id is equal, the higher the size difference, the better.'''
@@ -141,7 +149,6 @@ class PermutationHeuristic(AbstractHeuristic):
         return self.__fillup_box_id <= other.__fillup_box_id
       return True
     return self.__size_difference >= other.__size_difference
-  
+
   def is_valid(self) -> bool:
     return True
-  

@@ -21,8 +21,6 @@ class LocalSearch(OptimizationAlgorithm):
     # if Permutation is used, rerun the current solution
     if self.strategy == Permutation:
       self.problem.current_solution = self.strategy.initialize(self.problem.current_solution)
-      
-
 
   def set_strategy(self, strategy: Neighborhood):
     '''Sets the neighborhood definition.'''
