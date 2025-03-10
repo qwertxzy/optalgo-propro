@@ -6,7 +6,8 @@ from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass
 
-from problem import BoxSolution, Rectangle
+from problem.box_problem.box_solution import BoxSolution
+from problem.box_problem.geometry import Rectangle
 from ..mode import Mode
 from ..move import Move
 

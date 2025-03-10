@@ -1,38 +1,9 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from geometry.rectangle import Rectangle
-
-
-@dataclass
-class AbstractHeuristic(ABC):
-    '''
-    Represents the score of a solution.
-    '''
-
-    @abstractmethod
-    def is_valid(self) -> bool:
-        pass
-
-    @abstractmethod
-    def __iter__(self):
-        pass
-
-    @abstractmethod
-    def __repr__(self):
-        pass
-
-    @abstractmethod
-    def __lt__(self, other: 'AbstractHeuristic'):
-        pass
-
-    @abstractmethod
-    def __eq__(self, other: 'AbstractHeuristic'):
-        pass
-
-    @abstractmethod
-    def __le__(self, other: 'AbstractHeuristic'):
-        pass
+from .geometry.rectangle import Rectangle
+from ..heuristic import AbstractHeuristic
+from .box_solution import BoxSolution
 
 
 @dataclass
@@ -95,7 +66,19 @@ class PermutationHeuristic(AbstractHeuristic):
 
   '''Difference in size between the two rectangles that are swapped. The Higher the better.'''
 
-  def __init__(self, rect_A: 'Rectangle', rect_B: 'Rectangle', is_fillup: bool = False, box_size: int = 0):
+  def __init__(self, *args):
+    if len(args) == 1:
+      self.__init_with_solution(args[0])
+    elif len(args) == 2 or len(args) == 3 or len(args) == 4:
+      self.__init_with_rects(*args)
+    else:
+      raise ValueError("PermutationHeuristic can only be initialized with 1 or 3 arguments.")
+
+  def __init_with_solution(self, solution: BoxSolution):
+    self.__size_difference = 0
+
+
+  def __init_with_rects(self, rect_A: 'Rectangle', rect_B: 'Rectangle', is_fillup: bool = False, box_size: int = 0):
     ''' Rectangles A and B are swapped. The larger the difference, the better. Benefits only if the smaller rectangle is moved to the box with the smaller ID. A negative value indicates that the swap is not beneficial.'''
     if rect_A.box_id > rect_B.box_id:
       rect_A, rect_B = rect_B, rect_A
@@ -144,4 +127,3 @@ class PermutationHeuristic(AbstractHeuristic):
   
   def is_valid(self) -> bool:
     return True
-  

@@ -5,7 +5,7 @@ import pstats
 import random
 
 #pylint: disable=W0401,W0614
-from problem import BoxProblem
+from problem.box_problem.box_problem import BoxProblem
 from algorithms import *
 from modes import *
 

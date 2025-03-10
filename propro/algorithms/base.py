@@ -4,7 +4,7 @@ Module contains a base definition of an optimization algorithm
 
 from abc import ABC, abstractmethod
 
-from problem import Problem, Solution
+from problem.problem import Problem, Solution
 from modes import Mode
 
 class OptimizationAlgorithm(ABC):

@@ -1,79 +1,20 @@
-'''
-Module contains an abstract problem definition as well as the
-concrete implementation for the box-rectangle problem given.
-'''
+
 
 from __future__ import annotations
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from random import choice
 from itertools import combinations
 from dataclasses import dataclass
 from math import log2
 from collections import deque
 
-from geometry import Rectangle, Box
-from heuristic import AbstractHeuristic
 
-@dataclass
-class Score:
-  '''
-  Represents the score of a solution.
-  `None` as a box count will indicate an invalid solution.
-  '''
-  box_count: int
-  '''Number of overall boxes in this solution. Lower is better.'''
-  # Was planned as 'gain' but that can only work on a move, not on a solution
-  box_entropy: int
-  '''Measure of how distributed rects are among boxes. Lower is better.'''
-  incident_edges: int
-  '''Number of coordinates shared by two adjacent rects. Higher is better.'''
+from ..solution import Solution
+from .geometry import Box, Rectangle
+from ..heuristic import AbstractHeuristic
 
-  def __iter__(self):
-    return iter((self.box_count, self.box_entropy, self.incident_edges))
+from ..problem import Score
 
-
-class Problem(ABC):
-  '''
-  Abstract base class for a generic optimization problem.
-  '''
-  current_solution: Solution
-
-class Solution(ABC):
-  '''
-  Abstract base class for a generic optimization solution.
-  '''
-  @abstractmethod
-  def get_heuristic_score(self) -> AbstractHeuristic:
-    '''
-    Computes and returns the score of this solution.
-    '''
-  @abstractmethod
-  def is_valid(self) -> bool:
-    '''
-    Checks whether this solution is valid in the first place.
-    '''
-
-class BoxProblem(Problem):
-  '''
-  Implementation for the box-rectangle problem.
-  Contains the initial starting parameters and a current solution
-  '''
-  def __init__(self, box_length: int, n_rect: int, w_range: range, h_range: range):
-    '''
-    Initializes the box problem with a trivial solution where each rectangle is in its own box.
-    '''
-    boxes = []
-    for n in range(n_rect):
-      # Get ourselves a nice rect tangle
-      width = choice(w_range)
-      height = choice(h_range)
-      rect = Rectangle(0, 0, width, height, n, n)
-
-      # Now construct a new box and put just this one in it
-      boxes.append(Box(n, box_length, rect))
-
-    # Finally, initialize the solution with list of boxes
-    self.current_solution = BoxSolution(box_length, boxes)
 
 class BoxSolution(Solution):
   '''

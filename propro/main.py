@@ -10,7 +10,8 @@ from threading import Event
 import random
 import FreeSimpleGUI as sg
 
-from problem import BoxSolution, BoxProblem
+from problem.box_problem.box_problem import BoxProblem
+from problem.box_problem.box_solution import BoxSolution
 from algorithms import OptimizationAlgorithm, get_algo_by_name
 from modes import get_available_modes, get_mode_by_name
 from config import RunConfiguration, show_config_picker

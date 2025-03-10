@@ -7,10 +7,10 @@ import os
 
 import numpy as np
 
-from geometry import Box, Rectangle
-from heuristic import PermutationHeuristic
+from problem.box_problem.geometry import Box, Rectangle
+from problem.box_problem.box_heuristic import PermutationHeuristic
 from utils import flatten
-from problem import BoxSolution
+from problem.box_problem.box_solution import BoxSolution
 from .neighborhood import Neighborhood
 from ..move import ScoredMove, Move
 
@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 # 2) this could be fixed by not swapping rectangles if we do a fillup, but put the inserting rectangle at this position. 
 #    By this the recond part will be moved to the end of the list.
 #    BUT: it might violate the permutation rule, as this is almost like a swap.
+
+#TODO: implement generate_heuristic for this neighborhood
 
 class Permutation(Neighborhood):
   '''Implementation for a permutation-based neighborhood'''
@@ -74,9 +76,9 @@ class Permutation(Neighborhood):
     for move in moves:
       rect_A = move.first_rect
       rect_B = move.second_rect
-      heuristic_score = PermutationHeuristic(rect_A, rect_B)
+      heuristic_score = cls.generate_heuristic(solution, move)
       if move.is_fill:
-        heuristic_score = PermutationHeuristic(rect_A, rect_B, True, solution.side_length)
+        heuristic_score = cls.generate_heuristic(solution, move)
       scored_moves.append(ScoredMove(move, heuristic_score))
     return scored_moves
   
@@ -211,6 +213,18 @@ class Permutation(Neighborhood):
 
     logger.info("Explored %i neighbors", len(scored_moves))
     return scored_moves
+  
+  @classmethod
+  def generate_heuristic(cls, solution: BoxSolution, move: Move = None):
+    if move is None:
+      return PermutationHeuristic(solution)
+  
+    rect_A = move.first_rect
+    rect_B = move.second_rect
+    heuristic = PermutationHeuristic(rect_A, rect_B)
+    if move.is_fill:
+      heuristic = PermutationHeuristic(rect_A, rect_B, True, solution.side_length)
+    return heuristic
 
 @dataclass
 class PermutationMove(Move):

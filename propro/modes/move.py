@@ -8,8 +8,8 @@ from dataclasses import dataclass
 from typing import TypeVar, Generic
 from abc import ABC, abstractmethod
 
-from problem import Solution, Score
-from heuristic import AbstractHeuristic
+from problem.solution import Solution
+from problem.heuristic import AbstractHeuristic
 
 class Move(ABC):
   '''

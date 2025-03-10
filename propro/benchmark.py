@@ -13,7 +13,7 @@ from rich.console import Console
 
 from algorithms import OptimizationAlgorithm
 from modes import get_available_modes
-from problem import BoxProblem
+from problem.box_problem.box_problem import BoxProblem
 
 # TODO: Assignment calls for several runs to be executed in one call, is this important?
 
