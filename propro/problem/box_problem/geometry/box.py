@@ -76,9 +76,9 @@ class Box:
     self.dirty = True
     self.needs_redraw = True
     return True
-  
+
   def fit_rect_compress(self, rect: Rectangle, apply_insertion: bool = True) -> bool:
-    ''' Tries to place a rectangle within this box. Will return false if unsuccessful. 
+    ''' Tries to place a rectangle within this box. Will return false if unsuccessful.
         This method will try to fit a rectangle into the box and sets its coordinates
         accordingly if apply_insertion parameter is set to true.'''
     self.recalculate_stats()
@@ -86,7 +86,7 @@ class Box:
     free_coords = self.get_free_coordinates()
     # sort the free coordinates first by x and then y
     sorted_free_coords = sorted(free_coords, key=lambda coord: (coord[0], coord[1]))
-    # check if the rectangle would fit. 
+    # check if the rectangle would fit.
     for x, y in sorted_free_coords:
       # does free_coords contain all the coordinates of the rectangle?
       if all((x + i, y + j) in free_coords for i in range(rect.get_width()) for j in range(rect.get_height())):
@@ -119,7 +119,7 @@ class Box:
     '''Returns all currently free x/y coordinates in this box.'''
     self.recalculate_stats()
     return self.__free_coords
-  
+
 
   def get_adjacent_coordinates(self) -> set[tuple[int, int]]:
     '''
@@ -135,7 +135,7 @@ class Box:
     if self.dirty:
       self.recalculate_stats()
     return self.__incident_edge_count
-  
+
   def recalculate_stats(self):
     '''
     Recalculates the statistics of this box if the box is dirty.

@@ -13,6 +13,8 @@ class ByAreaSelection(SelectionSchema):
    which are created in the process.
   '''
 
+  # TODO: could try and use box's fit_rect_compress but that would need to return the coordinates
+
   @staticmethod
   def __fits_rect(box: Box, box_length: int, rect: Rectangle) -> Optional[tuple[int, int]]:
     '''Checks if a given rect fits somewhere in a box and returns the origin coordinates if possible'''
@@ -33,6 +35,10 @@ class ByAreaSelection(SelectionSchema):
     If no fit was found, a new box is created to accomodate it.
     '''
     for box in partial_solution.boxes.values():
+      # Skip full boxes
+      if len(box.get_free_coordinates()) == 0:
+        continue
+
       possible_fit = ByAreaSelection.__fits_rect(box, partial_solution.side_length, rect)
       if possible_fit is not None:
         rect.move_to(*possible_fit)

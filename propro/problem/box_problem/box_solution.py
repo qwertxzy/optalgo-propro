@@ -1,10 +1,10 @@
 
 
 from __future__ import annotations
+from typing import Any
 from abc import abstractmethod
 from random import choice
 from itertools import combinations
-from dataclasses import dataclass
 from math import log2
 from collections import deque
 
@@ -12,6 +12,7 @@ from collections import deque
 from ..solution import Solution
 from .geometry import Box, Rectangle
 from ..heuristic import AbstractHeuristic
+from .box_heuristic import GenericHeuristic
 
 from ..problem import Score
 
@@ -38,8 +39,8 @@ class BoxSolution(Solution):
     self.currently_permissible_overlap = 0.0
     self.side_length = side_length
     self.boxes = {}
-    # Initialize queue with max length = rect count / 2
-    self.last_moved_rect_ids = deque(maxlen=int(sum(len(b.rects) for b in box_list) / 2))
+    # Initialize queue with max length = rect count / 4
+    self.last_moved_rect_ids = deque(maxlen=int(sum(len(b.rects) for b in box_list) / 4))
     for box in box_list:
       self.boxes[box.id] = box
 
@@ -58,16 +59,14 @@ class BoxSolution(Solution):
 
     # If move was unsuccessful, it resulted in an invalid solution
     if not move_sucessful:
-      return AbstractHeuristic(None, None, None)
+      return GenericHeuristic(None, None, None)
 
     # If move is valid, construct a proper score,
-    score = Score(len(self.boxes), self.compute_box_entropy(), self.compute_incident_edge_coordinates())
+    score = GenericHeuristic(len(self.boxes), self.compute_box_entropy(), self.compute_incident_edge_coordinates())
 
     # Undo the move operation
     move.undo(self)
     return score
-  
-
 
   def compute_incident_edge_coordinates(self) -> int:
     '''number of coordinates that at least 2 rectangles share.'''
@@ -87,15 +86,15 @@ class BoxSolution(Solution):
     return entropy
 
   # TODO: don't re-calculate this every time
-  def get_heuristic_score(self) -> Score:
+  def get_heuristic_score(self) -> GenericHeuristic:
     if not self.is_valid():
-      return Score(None, None, None)
+      return GenericHeuristic(None, None, None)
 
     # Calculate all aspects of a score
     box_counts = len(self.boxes)
     box_entropy = self.compute_box_entropy()
     incident_edges = self.compute_incident_edge_coordinates()
-    return Score(box_counts, box_entropy, incident_edges)
+    return GenericHeuristic(box_counts, box_entropy, incident_edges)
 
   def is_valid(self):
     # Go over all rects in all boxes

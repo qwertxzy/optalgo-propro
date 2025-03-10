@@ -5,7 +5,7 @@ Implementation of a local search algorithm
 import logging
 import random
 
-from modes import Neighborhood, Geometric, Permutation
+from modes import Neighborhood, Geometric
 from .base import OptimizationAlgorithm
 
 logger = logging.getLogger(__name__)
@@ -16,13 +16,9 @@ class LocalSearch(OptimizationAlgorithm):
   '''
 
   def __init__(self, problem, neighborhood_definition: Neighborhood = Geometric):
-    super().__init__(problem)
     self.strategy = neighborhood_definition
-    # if Permutation is used, rerun the current solution
-    if self.strategy == Permutation:
-      self.problem.current_solution = self.strategy.initialize(self.problem.current_solution)
-      
-
+    problem.current_solution = self.strategy.initialize(problem.current_solution)
+    super().__init__(problem)
 
   def set_strategy(self, strategy: Neighborhood):
     '''Sets the neighborhood definition.'''

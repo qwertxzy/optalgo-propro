@@ -86,7 +86,6 @@ class Geometric(Neighborhood):
       new_box_score = cls.generate_heuristic(solution, new_box_move)
       moves.append(ScoredMove(new_box_move, new_box_score))
     return moves
-  
 
   @classmethod
   def get_neighbors(cls, solution: BoxSolution) -> list[ScoredMove]:
@@ -140,9 +139,9 @@ class Geometric(Neighborhood):
 
     logger.info("Explored %i neighbors", len(scored_moves))
     return scored_moves
-  
+
   @classmethod
-  def generate_heuristic(self, solution: BoxSolution, move: Move = None) -> GenericHeuristic:
+  def generate_heuristic(cls, solution: BoxSolution, move: Move = None) -> GenericHeuristic:
     '''
     Calculates the heuristic score of the solution after a given move.
     Passing no move will return the heuristic score of the solution itself.
@@ -158,7 +157,11 @@ class Geometric(Neighborhood):
       return GenericHeuristic(None, None, None)
 
     # If move is valid, construct a proper score,
-    heuristic = GenericHeuristic(len(solution.boxes), solution.compute_box_entropy(), solution.compute_incident_edge_coordinates())
+    heuristic = GenericHeuristic(
+      len(solution.boxes),
+      solution.compute_box_entropy(),
+      solution.compute_incident_edge_coordinates()
+    )
 
     # Undo the move operation
     if move is not None:

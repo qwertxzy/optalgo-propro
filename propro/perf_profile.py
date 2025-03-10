@@ -79,4 +79,3 @@ if __name__ == "__main__":
   ## callgraph_LocalSearch_Permutation_100rects_10ticks:
     # initial runtime: 40.6s
     # in parallel: 25.564 seconds
-

@@ -4,8 +4,6 @@ Contains the Rectangle class for the box-rect problem
 from __future__ import annotations
 from itertools import product, chain
 
-import numpy as np
-
 class Rectangle:
   '''
   One rectangle to be fitted into boxes in the box-rect problem.
@@ -42,7 +40,7 @@ class Rectangle:
     self.__edges = set()
     self.__is_dirty_coordinates = True
     self.__is_dirty_edges = True
-    
+
 
   def __repr__(self):
     return f"[{self.id}: ({self.__x}+{self.width}/{self.__y}+{self.height})]"
@@ -70,19 +68,19 @@ class Rectangle:
   def get_y(self) -> int:
     '''Returns y coordinate of the rect's origin'''
     return self.__y
-  
+
   def get_width(self) -> int:
     '''Returns the width of the rectangle'''
     return self.width
-  
+
   def get_height(self) -> int:
     '''Returns the height of the rectangle'''
     return self.height
-  
+
   def set_box_id(self, box_id: int):
     '''Set the box id of this rectangle'''
     self.box_id = box_id
-  
+
 
   def get_all_coordinates(self) -> set[tuple[int, int]]:
     '''Returns all possible points of this rect.'''
@@ -102,7 +100,7 @@ class Rectangle:
       self.__y + self.height > y
     ]
     return all(checks)
-  
+
   def contains_edge(self, x: int, y: int) -> bool:
     '''
     Checks whether a given x/y coordinate lies within this rect.
@@ -209,7 +207,7 @@ class Rectangle:
     '''Recompute the set of all coordinate points this rect covers'''
     assert self.width > 0 and self.height > 0, "Width and height must be positive"
     assert self.__x >= 0 and self.__y >= 0, "Coordinates must be non-negative"
-    
+
     # #Usage of np array took 11 seconds with the profiler, while the list comprehension took 3.4 seconds
     # # Get coordinates per axis
     # x_coords = np.arange(self.__x, self.__x + self.width)
@@ -218,7 +216,7 @@ class Rectangle:
     # # Reshape them into a grid
     # coordinates_array = np.array(np.meshgrid(x_coords, y_coords)).T.reshape(-1, 2)
     # self.__coordinates = set(map(tuple, coordinates_array))
-   
+
     self.__coordinates = set(
       (x, y) for x in range(self.__x, self.__x + self.width)
               for y in range(self.__y, self.__y + self.height)
