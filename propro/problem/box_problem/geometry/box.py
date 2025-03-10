@@ -71,7 +71,7 @@ class Box:
     if check_overlap and not rect.get_all_coordinates() <= self.__free_coords:
       return False
 
-    # rect.box_id = self.id
+    rect.box_id = self.id
 
     # Add rect to internal dict
     self.rects[rect.id] = rect
@@ -90,6 +90,43 @@ class Box:
 
     self.needs_redraw = True
     return True
+
+  def get_biggest_placeable_rect(self) -> tuple[int, int]:
+    '''
+    Returns the biggest rectangle that can be placed in this box.
+    '''
+    # Get all free coordinates
+    free_coords = self.get_free_coordinates(return_sorted=True)
+    free_coords_set = set(free_coords)  # Convert to set for O(1) lookups
+
+    # Find the biggest rectangle that fits
+    biggest_rect = None
+    biggest_area = 0
+    for x, y in free_coords:
+      # Find the biggest rectangle that fits at this coordinate
+      width = 0
+      height = 0
+      #check in x direction first
+      while (x + width, y) in free_coords_set:
+        width += 1
+      while all((x + i, y + height) in free_coords_set for i in range(width)):
+        height += 1
+      area = width * height
+
+      #check in y direction first
+      width = 0
+      height = 0
+      while (x, y + height) in free_coords_set:
+        height += 1
+      while all((x + width, y + j) in free_coords_set for j in range(height)):
+        width += 1
+      if width * height > area:
+        area = width * height
+
+      if area > biggest_area:
+        biggest_area = area
+        biggest_rect = (width, height)
+    return biggest_rect
 
   def fit_rect_compress(self, rect: Rectangle, apply_insertion: bool = True) -> bool:
     ''' Tries to place a rectangle within this box. Will return false if unsuccessful.
@@ -128,6 +165,10 @@ class Box:
   def remove_rect(self, rect_id: int) -> Rectangle:
     '''Removes a rectangle from this box.'''
     self.recalculate_stats()
+
+    #check if rect is in box
+    if rect_id not in self.rects:
+      return None
 
     # Update adjacent coordinate set
     self.__adjacent_coordinates ^= self.rects[rect_id].get_edges()

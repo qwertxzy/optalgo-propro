@@ -117,3 +117,15 @@ class BoxSolution(Solution):
     # Remove now empty boxes from solution
     self.boxes.clear()
     return rects
+  
+  def insert_new_box_at(self, box: Box, box_id: int):
+    '''
+    Inserts a new box at the given box_id.
+    pushes all other boxes with id >= box_id back by one.
+    '''
+    # Shift all boxes with id >= box_id back by one
+    for i in range(len(self.boxes), box_id, -1):
+      self.boxes[i] = self.boxes[i - 1]
+      self.boxes[i].set_box_id(i)
+    self.boxes[box_id] = box
+    box.set_box_id(box_id)
