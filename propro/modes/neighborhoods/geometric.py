@@ -119,23 +119,24 @@ class Geometric(Neighborhood):
     # If we have a prio rect, generate moves only for this in hopes of
     # putting it into another box
     scored_moves = []
-    if prio_rect is not None:
-      scored_moves = cls.generate_moves_for_rects(solution, [prio_rect])
+    scored_moves = cls.generate_moves_for_rects(solution, rects)
+    # if prio_rect is not None:
+    #   scored_moves = cls.generate_moves_for_rects(solution, [prio_rect])
 
-    # If scored moves are empty either because there was no prio rect or because
-    # the method didn't return any valid neighbors, do the expensive shaboingboing
-    if len(scored_moves) == 0:
-      # Copy the current solution so every thread can modify it independently
-      solution_copies = [deepcopy(solution) for _ in range(cls.n_proc)]
+    # # If scored moves are empty either because there was no prio rect or because
+    # # the method didn't return any valid neighbors, do the expensive shaboingboing
+    # if len(scored_moves) == 0:
+    #   # Copy the current solution so every thread can modify it independently
+    #   solution_copies = [deepcopy(solution) for _ in range(cls.n_proc)]
 
-      # Split moves into chunks for pool to process
-      chunks = np.array_split(rects, cls.n_proc)
+    #   # Split moves into chunks for pool to process
+    #   chunks = np.array_split(rects, cls.n_proc)
 
-      logger.info("Split move generation into chunks of sizes %s", [len(c) for c in chunks])
+    #   logger.info("Split move generation into chunks of sizes %s", [len(c) for c in chunks])
 
-      # Evaluate all rects to scored moves concurrently
-      with Pool(processes=cls.n_proc) as pool:
-        scored_moves = flatten(pool.starmap(cls.generate_moves_for_rects, zip(solution_copies, chunks)))
+    #   # Evaluate all rects to scored moves concurrently
+    #   with Pool(processes=cls.n_proc) as pool:
+    #     scored_moves = flatten(pool.starmap(cls.generate_moves_for_rects, zip(solution_copies, chunks)))
 
     logger.info("Explored %i neighbors", len(scored_moves))
     return scored_moves

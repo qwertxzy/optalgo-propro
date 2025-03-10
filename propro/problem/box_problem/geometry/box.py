@@ -71,6 +71,8 @@ class Box:
     if check_overlap and not rect.get_all_coordinates() <= self.__free_coords:
       return False
 
+    # rect.box_id = self.id
+
     # Add rect to internal dict
     self.rects[rect.id] = rect
 
@@ -94,16 +96,16 @@ class Box:
         This method will try to fit a rectangle into the box and sets its coordinates
         accordingly if apply_insertion parameter is set to true.'''
     # get all the free coordinates in a sorted manner
-    free_coords = self.get_free_coordinates(sorted=True)
+    free_coords = self.get_free_coordinates(return_sorted=True)
     free_coords_set = set(free_coords)  # Convert to set for O(1) lookups
     rect_width, rect_height = rect.get_width(), rect.get_height()
     flipped_width, flipped_height = rect_height, rect_width
 
     def can_place(x, y, width, height):
       for i in range(width):
-          for j in range(height):
-              if (x + i, y + j) not in free_coords_set:
-                  return False
+        for j in range(height):
+          if (x + i, y + j) not in free_coords_set:
+            return False
       return True
 
     # check if the rectangle would fit.
@@ -122,7 +124,7 @@ class Box:
           self.add_rect(rect)
         return True
     return False
-  
+
   def remove_rect(self, rect_id: int) -> Rectangle:
     '''Removes a rectangle from this box.'''
     self.recalculate_stats()
@@ -135,11 +137,11 @@ class Box:
     # Remove rect from internal dict
     return self.rects.pop(rect_id)
 
-  def get_free_coordinates(self, sorted: bool=False) -> set[tuple[int, int]]:
+  def get_free_coordinates(self, return_sorted: bool=False) -> set[tuple[int, int]]:
     '''Returns all currently free x/y coordinates in this box.
     If sorted is set to true, the coordinates will be sorted by x and then y.'''
     self.recalculate_stats()
-    if sorted:
+    if return_sorted:
       return self.__sorted_free_coords
     return self.__free_coords
 

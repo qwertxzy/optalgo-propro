@@ -24,3 +24,4 @@ class BoxProblem(Problem):
 
     # Finally, initialize the solution with list of boxes
     self.current_solution = BoxSolution(box_length, boxes)
+    

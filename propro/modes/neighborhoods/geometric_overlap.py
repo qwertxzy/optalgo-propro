@@ -156,10 +156,9 @@ class GeometricOverlap(Neighborhood):
 
     logger.info("Explored %i neighbors", len(scored_moves))
     return scored_moves
-  
 
   @classmethod
-  def generate_heuristic(self, solution: BoxSolution, move: Move = None) -> GenericHeuristic:
+  def generate_heuristic(cls, solution: BoxSolution, move: Move = None) -> GenericHeuristic:
     '''
     Calculates the heuristic score of the solution after a given move.
     Passing no move will return the heuristic score of the solution itself.
@@ -174,8 +173,10 @@ class GeometricOverlap(Neighborhood):
     if not move_sucessful:
       return GenericHeuristic(None, None, None)
 
-    # If move is valid, construct a proper score,
-    heuristic = GenericHeuristic(len(solution.boxes), solution.compute_box_entropy(), solution.compute_incident_edge_coordinates())
+    # If move is valid, construct a proper score
+    box_entropy = solution.compute_box_entropy()
+    incident_edges = solution.compute_incident_edge_coordinates()
+    heuristic = GenericHeuristic(len(solution.boxes), box_entropy, incident_edges)
 
     # Undo the move operation
     if move is not None:

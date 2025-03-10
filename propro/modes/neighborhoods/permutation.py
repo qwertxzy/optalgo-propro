@@ -7,8 +7,8 @@ from dataclasses import dataclass
 
 from problem.box_problem.geometry import Box, Rectangle
 from problem.box_problem.box_heuristic import PermutationHeuristic
-from utils import flatten
 from problem.box_problem.box_solution import BoxSolution
+from utils import flatten
 from .neighborhood import Neighborhood
 from ..move import ScoredMove, Move
 
@@ -208,17 +208,17 @@ class Permutation(Neighborhood):
 
     logger.info("Explored %i neighbors", len(scored_moves))
     return scored_moves
-  
+
   @classmethod
   def generate_heuristic(cls, solution: BoxSolution, move: Move = None):
     if move is None:
       return PermutationHeuristic(solution)
-  
-    rect_A = move.first_rect
-    rect_B = move.second_rect
-    heuristic = PermutationHeuristic(rect_A, rect_B)
+
+    rect_a = move.first_rect
+    rect_b = move.second_rect
+    heuristic = PermutationHeuristic(rect_a, rect_b)
     if move.is_fill:
-      heuristic = PermutationHeuristic(rect_A, rect_B, True, solution.side_length)
+      heuristic = PermutationHeuristic(rect_a, rect_b, True, solution.side_length)
     return heuristic
 
 @dataclass
@@ -262,7 +262,14 @@ class PermutationMove(Move):
     return boxes
 
   @classmethod
-  def partial_decode(cls, rect_a: Rectangle, rect_b: Rectangle, rects: list[Rectangle], box_length: int, boxes: dict[int, Box]) -> dict[int, Box]:
+  def partial_decode(
+    cls,
+    rect_a: Rectangle,
+    rect_b: Rectangle,
+    rects: list[Rectangle],
+    box_length: int,
+    boxes: dict[int, Box]
+  ) -> dict[int, Box]:
     '''
     Decodes a list of rectangles into a valid solution to the box-rect problem.
     It only modifies the boxes that contain the rectangles that were swapped and eventally propagated changes.
@@ -305,8 +312,10 @@ class PermutationMove(Move):
         needs_new_box = True
         current_box = Box(current_box.id+1, box_length)
         current_box.fit_rect_compress(rect)
-        assert rect.get_x() == 0 and rect.get_y() == 0, \
-          f"Rectangle must be placed in the upper left corner as the box is empty. currlocation is: {rect.get_x()} {rect.get_y()}"
+        assert rect.get_x() == 0 and rect.get_y() == 0, (
+          f"Rectangle must be placed in the upper left corner as the box is empty."
+          f"Current location is: {rect.get_x()} {rect.get_y()}"
+        )
         boxes[current_box.id] = current_box
     #might need to remove boxes if the current_box is not the last box
     if current_box.id < len(boxes):
