@@ -18,6 +18,8 @@ class Box:
   '''number of coordinates that at least 2 rectangles in this box share.'''
   __free_coords: set[tuple[int, int]]
   '''All free coordinates in this box. These are coordinates used for search space exploration.'''
+  __sorted_free_coords: list[tuple[int, int]]
+  '''All free coordinates in this box, sorted by x and then y.'''
   __adjacent_coordinates: set[tuple[int, int]]
   '''All coordinates adjacent to the rectangles in this box.'''
   dirty: bool = True
@@ -81,28 +83,36 @@ class Box:
     ''' Tries to place a rectangle within this box. Will return false if unsuccessful.
         This method will try to fit a rectangle into the box and sets its coordinates
         accordingly if apply_insertion parameter is set to true.'''
-    self.recalculate_stats()
-    # get all the free coordinates
-    free_coords = self.get_free_coordinates()
-    # sort the free coordinates first by x and then y
-    sorted_free_coords = sorted(free_coords, key=lambda coord: (coord[0], coord[1]))
+    # get all the free coordinates in a sorted manner
+    free_coords = self.get_free_coordinates(sorted=True)
+    free_coords_set = set(free_coords)  # Convert to set for O(1) lookups
+    rect_width, rect_height = rect.get_width(), rect.get_height()
+    flipped_width, flipped_height = rect_height, rect_width
+
+    def can_place(x, y, width, height):
+      for i in range(width):
+          for j in range(height):
+              if (x + i, y + j) not in free_coords_set:
+                  return False
+      return True
+
     # check if the rectangle would fit.
-    for x, y in sorted_free_coords:
+    for x, y in free_coords:
       # does free_coords contain all the coordinates of the rectangle?
-      if all((x + i, y + j) in free_coords for i in range(rect.get_width()) for j in range(rect.get_height())):
+      if can_place(x, y, rect_width, rect_height):
         if apply_insertion:
           rect.move_to(x, y, box_id=self.id)
           self.add_rect(rect)
         return True
       # check the flipped version
-      if all((x + i, y + j) in free_coords for i in range(rect.get_height()) for j in range(rect.get_width())):
+      if can_place(x, y, flipped_width, flipped_height):
         if apply_insertion:
           rect.flip()
           rect.move_to(x, y, box_id=self.id)
           self.add_rect(rect)
         return True
     return False
-
+  
   def remove_rect(self, rect_id: int) -> Rectangle:
     '''Removes a rectangle from this box.'''
     self.recalculate_stats()
@@ -115,9 +125,12 @@ class Box:
     # Remove rect from internal dict
     return self.rects.pop(rect_id)
 
-  def get_free_coordinates(self) -> set[tuple[int, int]]:
-    '''Returns all currently free x/y coordinates in this box.'''
+  def get_free_coordinates(self, sorted: bool=False) -> set[tuple[int, int]]:
+    '''Returns all currently free x/y coordinates in this box.
+    If sorted is set to true, the coordinates will be sorted by x and then y.'''
     self.recalculate_stats()
+    if sorted:
+      return self.__sorted_free_coords
     return self.__free_coords
 
 
@@ -153,6 +166,7 @@ class Box:
     self.__free_coords = set(product(range(self.side_length), range(self.side_length)))
     for rect in self.rects.values():
       self.__free_coords = self.__free_coords - rect.get_all_coordinates()
+    self.__sorted_free_coords = sorted(self.__free_coords, key=lambda coord: (coord[0], coord[1]))
 
   def __recalculate_adjacent_coordinates(self):
     '''
