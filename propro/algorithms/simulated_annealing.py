@@ -24,8 +24,9 @@ class SimulatedAnnealing(OptimizationAlgorithm):
   inner_loop_counter: int
 
   def __init__(self, problem, neighborhood_definition: type[Neighborhood] = Geometric):
-    super().__init__(problem)
     self.strategy = neighborhood_definition
+    problem.current_solution = self.strategy.initialize(problem.current_solution)
+    super().__init__(problem)
     self.temperature = START_TEMP
     self.inner_loop_counter = 0
 
@@ -82,7 +83,7 @@ class SimulatedAnnealing(OptimizationAlgorithm):
     logger.info("Found %i neighbors", len(neighbors))
 
     # Get a random move
-    neighbor = random.choice([n for n in neighbors if n.is_valid()])
+    neighbor = random.choice(neighbors)
 
     # Possibly accept neighbor as new current solution
     self.__accept_solution(neighbor)
