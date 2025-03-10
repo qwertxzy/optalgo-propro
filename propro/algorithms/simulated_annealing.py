@@ -47,16 +47,13 @@ class SimulatedAnnealing(OptimizationAlgorithm):
     # Draw a random number
     rand = random.random()
 
-    # If not strictly better, do the probabilistic acceptance on box entropy
-    entropy_delta = current_score.box_entropy - scored_move.score.box_entropy
-    if exp(-entropy_delta / self.temperature) > rand:
-      scored_move.move.apply_to_solution(self.problem.current_solution)
-      return
-
-    # If that didn't do it, do the probabilistic check on incident edges
-    edge_delta = current_score.incident_edges - scored_move.score.incident_edges
-    if exp(-edge_delta / self.temperature) > rand:
-      scored_move.move.apply_to_solution(self.problem.current_solution)
+    curr_score_iter = iter(current_score)
+    scored_score_iter = iter(scored_move.score)
+    for curr, new in zip(curr_score_iter, scored_score_iter):
+      delta = curr - new
+      if exp(delta / self.temperature) > rand:
+        scored_move.move.apply_to_solution(self.problem.current_solution)
+        return
 
   def __update_temperature(self):
     '''Can be called to update the temperature after each algorithm tick'''

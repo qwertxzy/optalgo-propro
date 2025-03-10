@@ -77,7 +77,7 @@ class Geometric(Neighborhood):
 
             moves.append(ScoredMove(move, score))
 
-            # # If we have more than 5 rects to process, we are fine with finding a box-decreasing move
+            # If we found a better solution, return it
             if score < current_score:
               return moves
       # Bonus move! Put the rect into a new box at 0/0
@@ -119,9 +119,12 @@ class Geometric(Neighborhood):
     # If we have a prio rect, generate moves only for this in hopes of
     # putting it into another box
     scored_moves = []
-    scored_moves = cls.generate_moves_for_rects(solution, rects)
-    # if prio_rect is not None:
-    #   scored_moves = cls.generate_moves_for_rects(solution, [prio_rect])
+
+    if prio_rect is not None:
+      scored_moves = cls.generate_moves_for_rects(solution, [prio_rect])
+
+    if len(scored_moves) == 0:
+      scored_moves = cls.generate_moves_for_rects(solution, rects)
 
     # # If scored moves are empty either because there was no prio rect or because
     # # the method didn't return any valid neighbors, do the expensive shaboingboing
@@ -142,7 +145,7 @@ class Geometric(Neighborhood):
     return scored_moves
 
   @classmethod
-  def generate_heuristic(cls, solution: BoxSolution, move: Move = None) -> GenericHeuristic:
+  def generate_heuristic(cls, solution: BoxSolution, move: GeometricMove = None) -> GenericHeuristic:
     '''
     Calculates the heuristic score of the solution after a given move.
     Passing no move will return the heuristic score of the solution itself.

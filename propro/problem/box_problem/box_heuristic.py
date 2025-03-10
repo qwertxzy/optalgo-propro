@@ -25,7 +25,7 @@ class GenericHeuristic(AbstractHeuristic):
     return self.box_count is not None
 
   def __iter__(self):
-    return iter((self.box_count, self.box_entropy, self.incident_edges))
+    return iter((self.box_count, self.box_entropy, -self.incident_edges))
 
   def __repr__(self):
     return f"GenericHeuristic({self.box_count=}, {self.box_entropy=}, {self.incident_edges=})"
@@ -65,6 +65,7 @@ class PermutationHeuristic(AbstractHeuristic):
   __size_difference: int
   __is_fillup: bool = False
   __fillup_box_id: int = 0
+  __box_size: int = 0
 
   '''Difference in size between the two rectangles that are swapped. The Higher the better.'''
 
@@ -88,13 +89,14 @@ class PermutationHeuristic(AbstractHeuristic):
     if rect_A.box_id > rect_B.box_id:
       rect_A, rect_B = rect_B, rect_A
     self.__size_difference = rect_B.get_area() - rect_A.get_area()
+    self.__box_size = box_size
     if is_fillup:
       self.__is_fillup = True
       self.__fillup_box_id = rect_A.box_id
       self.__size_difference = box_size**2 + rect_B.get_area()
 
   def __iter__(self):
-    return iter((self.__size_difference, self.__is_fillup, self.__fillup_box_id))
+    return iter((self.__box_size**2 - self.__size_difference))
 
   def __repr__(self):
     return f"PermutationHeuristic({self.__size_difference=}, {self.__is_fillup=}, {self.__fillup_box_id=})"
@@ -153,7 +155,7 @@ class OverlapHeuristic(AbstractHeuristic):
     return self.illegally_overlapping_rects == 0
 
   def __iter__(self):
-    return iter(self.box_count, self.illegally_overlapping_rects)
+    return iter(self.box_count, self.illegally_overlapping_rects, -self.incident_edges)
 
   def __repr__(self):
     return f"OverlapHeuristic({self.box_count=}, {self.illegally_overlapping_rects=}, {self.incident_edges=})"
