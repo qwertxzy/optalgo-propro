@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Any
 from problem.heuristic import AbstractHeuristic
 
 class Solution(ABC):
@@ -15,3 +16,9 @@ class Solution(ABC):
     '''
     Checks whether this solution is valid in the first place.
     '''
+  @abstractmethod
+  def to_greedy_queue(self) -> list[Any]:
+    '''
+    Deconstructs this solution into something empty and returns a list of objects to be processed.
+    '''
+

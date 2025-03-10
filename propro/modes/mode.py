@@ -1,5 +1,5 @@
 from abc import ABC
-from problem import Solution
+from problem.solution import Solution
 
 class Mode(ABC):
   '''Base class for different algorithm modes'''

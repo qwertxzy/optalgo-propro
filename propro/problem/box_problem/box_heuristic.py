@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from .geometry.rectangle import Rectangle
 from ..heuristic import AbstractHeuristic
-from .box_solution import BoxSolution
+from ..solution import Solution
 
 
 @dataclass
@@ -76,7 +76,7 @@ class PermutationHeuristic(AbstractHeuristic):
     else:
       raise ValueError("PermutationHeuristic can only be initialized with 1 or 3 arguments.")
 
-  def __init_with_solution(self, solution: BoxSolution):
+  def __init_with_solution(self, solution: Solution):
     self.__size_difference = 0
 
 

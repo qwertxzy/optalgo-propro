@@ -14,8 +14,6 @@ from .geometry import Box, Rectangle
 from ..heuristic import AbstractHeuristic
 from .box_heuristic import GenericHeuristic
 
-from ..problem import Score
-
 
 class BoxSolution(Solution):
   '''
