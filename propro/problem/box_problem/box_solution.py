@@ -1,67 +1,19 @@
-'''
-Module contains an abstract problem definition as well as the
-concrete implementation for the box-rectangle problem given.
-'''
+
 
 from __future__ import annotations
 from typing import Any
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from random import choice
 from itertools import combinations
 from math import log2
 from collections import deque
 
-from geometry import Rectangle, Box
-from heuristic import AbstractHeuristic, GenericHeuristic
 
-class Problem(ABC):
-  '''
-  Abstract base class for a generic optimization problem.
-  '''
-  current_solution: Solution
+from ..solution import Solution
+from .geometry import Box, Rectangle
+from ..heuristic import AbstractHeuristic
+from .box_heuristic import GenericHeuristic
 
-class Solution(ABC):
-  '''
-  Abstract base class for a generic optimization solution.
-  '''
-  @abstractmethod
-  def get_heuristic_score(self) -> AbstractHeuristic:
-    '''
-    Computes and returns the score of this solution.
-    '''
-  @abstractmethod
-  def is_valid(self) -> bool:
-    '''
-    Checks whether this solution is valid in the first place.
-    '''
-
-  @abstractmethod
-  def to_greedy_queue(self) -> list[Any]:
-    '''
-    Deconstructs this solution into something empty and returns a list of objects to be processed.
-    '''
-
-class BoxProblem(Problem):
-  '''
-  Implementation for the box-rectangle problem.
-  Contains the initial starting parameters and a current solution
-  '''
-  def __init__(self, box_length: int, n_rect: int, w_range: range, h_range: range):
-    '''
-    Initializes the box problem with a trivial solution where each rectangle is in its own box.
-    '''
-    boxes = []
-    for n in range(n_rect):
-      # Get ourselves a nice rect tangle
-      width = choice(w_range)
-      height = choice(h_range)
-      rect = Rectangle(0, 0, width, height, n, n)
-
-      # Now construct a new box and put just this one in it
-      boxes.append(Box(n, box_length, rect))
-
-    # Finally, initialize the solution with list of boxes
-    self.current_solution = BoxSolution(box_length, boxes)
 
 class BoxSolution(Solution):
   '''

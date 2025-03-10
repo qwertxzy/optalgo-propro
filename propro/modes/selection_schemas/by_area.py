@@ -1,8 +1,8 @@
 from itertools import product
 from typing import Optional
 
-from problem import BoxSolution
-from geometry import Rectangle, Box
+from problem.box_problem.box_solution import BoxSolution
+from problem.box_problem.geometry import Rectangle, Box
 
 from .selections import SelectionSchema, SelectionMove
 

@@ -4,7 +4,7 @@ Implementation of a greedy search algorithm
 from typing import Any
 
 from modes import SelectionSchema, SelectionMove
-from problem import Problem
+from problem.problem import Problem
 from .base import OptimizationAlgorithm
 
 class GreedySearch(OptimizationAlgorithm):

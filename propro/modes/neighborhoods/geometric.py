@@ -7,9 +7,9 @@ import os
 
 import numpy as np
 
-from problem import BoxSolution
-from geometry import Box
-from heuristic import GenericHeuristic
+from problem.box_problem.box_solution import BoxSolution
+from problem.box_problem.geometry import Box
+from problem.box_problem.box_heuristic import GenericHeuristic
 from utils import flatten
 
 

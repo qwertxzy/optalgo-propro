@@ -2,8 +2,8 @@ from collections import defaultdict
 from collections.abc import Iterator
 from operator import itemgetter
 
-from problem import BoxSolution
-from geometry import Rectangle, Box
+from problem.box_problem.box_solution import BoxSolution
+from problem.box_problem.geometry import Rectangle, Box
 
 from .selections import SelectionSchema, SelectionMove
 

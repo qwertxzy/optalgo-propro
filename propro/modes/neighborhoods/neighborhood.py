@@ -3,7 +3,8 @@ Contains a basic neighborhood definition that must be inherited from
 '''
 from abc import abstractmethod
 
-from problem import BoxSolution
+from problem.box_problem.box_solution import BoxSolution
+from problem.heuristic import AbstractHeuristic
 from ..move import Move, ScoredMove
 from ..mode import Mode
 
@@ -24,14 +25,15 @@ class Neighborhood(Mode):
 
   @classmethod
   @abstractmethod
-  def get_neighbors(cls, solution: BoxSolution) -> list[Move]:
+  def get_neighbors(cls, solution: BoxSolution) -> list[ScoredMove]:
     '''
     Calculates neighbors of a given start solution.
     '''
 
   @classmethod
   @abstractmethod
-  def generate_heuristic(cls, solution: BoxSolution, move: Move) -> float:
+  def generate_heuristic(cls, solution: BoxSolution, move: Move = None) -> AbstractHeuristic:
     '''
-    Calculates a heuristic score for a given solution.
+    Calculates a heuristic score for a given solution after applying a move.
+    If the move is None, the heuristic score of the solution is calculated.
     '''
