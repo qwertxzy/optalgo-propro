@@ -24,6 +24,8 @@ class Box:
   '''All coordinates adjacent to the rectangles in this box.'''
   dirty: bool = True
   '''Flag to indicate that the adjacent coordinates need to be recalculated.'''
+  calc_coords: bool
+  '''Flag to skip adjacent coordinate and free coordinate calculation.'''
 
   needs_redraw: bool
   '''Signifies the drawing method that this box has changed and needs to be redrawn'''
@@ -33,24 +35,23 @@ class Box:
     s += ' '.join([str(r) for r in self.rects.values()])
     return s
 
-  def __init__(self, b_id: int, side_length: int, *rects: Rectangle):
+  def __init__(self, b_id: int, side_length: int, *rects: Rectangle, calc_coords: bool = True):
     '''
-    Initializes a new box with a number of rects
+    Initializes a new box with a number of rects.
+    Set `no_coords` to True if you want to skip adjacent / free coordinate calculation
     '''
     self.id = b_id
     self.side_length = side_length
     self.rects = {}
-    self.__free_coords = set(product(range(side_length), range(side_length)))
+
+    self.calc_coords = calc_coords
+    self.__adjacent_coordinates = set() # <- empty set is fine, even if we don't calc coords
+    if self.calc_coords:
+      self.__free_coords = set(product(range(side_length), range(side_length)))
+
     self.__incident_edge_count = 0
-    self.__adjacent_coordinates = set()
     self.dirty = True
     self.needs_redraw = True
-
-    # Init with top and left edge
-    self.adjacent_coordinates = set(chain(
-      product(range(self.side_length + 1), [0]),
-      product([0], range(self.side_length + 1))
-    ))
 
     for rect in rects:
       self.add_rect(rect)
@@ -64,11 +65,11 @@ class Box:
       rect.set_box_id(b_id)
 
 
-  def add_rect(self, rect: Rectangle, check_overlap = True) -> bool:
+  def add_rect(self, rect: Rectangle) -> bool:
     '''Tries to place a rectangle within this box. Will return false if unsuccessful.'''
     self.recalculate_stats()
     # If rects coordinates are not part of free cords, this won't fit
-    if check_overlap and not rect.get_all_coordinates() <= self.__free_coords:
+    if self.calc_coords and not rect.get_all_coordinates() <= self.__free_coords:
       return False
 
     rect.box_id = self.id
@@ -76,17 +77,22 @@ class Box:
     # Add rect to internal dict
     self.rects[rect.id] = rect
 
-    # Update incident edge count
-    adj_coords = self.__adjacent_coordinates
-    rect_edges = rect.get_edges()
-    self.__incident_edge_count += len(rect_edges & adj_coords)
+    # Update coordinates if needed
+    if self.calc_coords:
+      # Update incident edge count
+      adj_coords = self.__adjacent_coordinates
+      rect_edges = rect.get_edges()
+      self.__incident_edge_count += len(rect_edges & adj_coords)
 
-    # Update adjacent coordinate set
-    self.__adjacent_coordinates ^= rect.get_edges()
+      # Update adjacent coordinate set
+      self.__adjacent_coordinates ^= rect.get_edges()
 
-    # Update free coordinates
-    self.__free_coords -= rect.get_all_coordinates()
-    self.__sorted_free_coords = sorted(self.__free_coords, key=lambda coord: (coord[0], coord[1]))
+      # Update free coordinates
+      self.__free_coords -= rect.get_all_coordinates()
+      self.__sorted_free_coords = sorted(self.__free_coords, key=lambda coord: (coord[0], coord[1]))
+    # When working without coordinate sets, just set dirty bit
+    else:
+      self.dirty = True
 
     self.needs_redraw = True
     return True
@@ -133,7 +139,7 @@ class Box:
         This method will try to fit a rectangle into the box and sets its coordinates
         accordingly if apply_insertion parameter is set to true.'''
     # get all the free coordinates in a sorted manner
-    free_coords = self.get_free_coordinates(return_sorted=True)
+    free_coords = self.get_free_coordinates(sort=True)
     free_coords_set = set(free_coords)  # Convert to set for O(1) lookups
     rect_width, rect_height = rect.get_width(), rect.get_height()
     flipped_width, flipped_height = rect_height, rect_width
@@ -170,19 +176,20 @@ class Box:
     if rect_id not in self.rects:
       return None
 
-    # Update adjacent coordinate set
-    self.__adjacent_coordinates ^= self.rects[rect_id].get_edges()
+    if self.calc_coords:
+      # Update adjacent coordinate set
+      self.__adjacent_coordinates ^= self.rects[rect_id].get_edges()
 
     self.dirty = True
     self.needs_redraw = True
     # Remove rect from internal dict
     return self.rects.pop(rect_id)
 
-  def get_free_coordinates(self, return_sorted: bool=False) -> set[tuple[int, int]]:
+  def get_free_coordinates(self, sort: bool=False) -> set[tuple[int, int]]:
     '''Returns all currently free x/y coordinates in this box.
     If sorted is set to true, the coordinates will be sorted by x and then y.'''
     self.recalculate_stats()
-    if return_sorted:
+    if sort:
       return self.__sorted_free_coords
     return self.__free_coords
 
@@ -207,8 +214,9 @@ class Box:
     Recalculates the statistics of this box if the box is dirty.
     '''
     if self.dirty:
-      self.__recalculate_adjacent_coordinates()
-      self.__recalculate_free_coordinates()
+      if self.calc_coords:
+        self.__recalculate_adjacent_coordinates()
+        self.__recalculate_free_coordinates()
       self.__recalculate_incident_edge_count()
       self.dirty = False
 

@@ -10,7 +10,7 @@ import numpy as np
 
 from problem.box_problem.box_solution import BoxSolution
 from problem.box_problem.geometry import Box
-from problem.box_problem.box_heuristic import GenericHeuristic
+from problem.box_problem.box_heuristic import OverlapHeuristic
 from utils import flatten
 
 from .neighborhood import Neighborhood
@@ -35,6 +35,29 @@ class GeometricOverlap(Neighborhood):
   # TODO: collapses just fine, but can't build up again..
 
   @classmethod
+  def initialize(cls, solution: BoxSolution) -> BoxSolution:
+    '''Initializes the solution by placing all rects at the origin'''
+    # Set call count to 0 and overlap to max
+    cls.call_count = 0
+    solution.currently_permissible_overlap = 1.0
+
+    # Create a new box with no advanced coordinate features
+    new_box = Box(0, solution.side_length, calc_coords=False)
+
+    # Move all rects to this box
+    for box_id in list(solution.boxes.keys()):
+      box = solution.boxes.pop(box_id)
+      # Move all rects
+      for rect_id in list(box.rects.keys()):
+        rect = box.rects.pop(rect_id)
+        rect.move_to(0, 0)
+        new_box.add_rect(rect)
+
+    # Replace all boxes in solution with just this new one
+    solution.boxes = { 0: new_box }
+    return solution
+
+  @classmethod
   def generate_moves_for_rects(cls, solution: BoxSolution, ids: list[tuple[int, int]]) -> list[ScoredMove]:
     '''
     Generates a list of scoreed moves for the given rects in `solution`.
@@ -48,9 +71,9 @@ class GeometricOverlap(Neighborhood):
       current_rect = current_box.rects[rect_id]
 
       # Iterate over every target box
-      for possible_box in solution.boxes.values():
+      for possible_box in list(solution.boxes.values()):
         # ... in any free coordinate within this box
-        for (x, y) in product(range(possible_box.side_length), range(possible_box.side_length)):
+        for (x, y) in product(range(possible_box.side_length - current_rect.width), range(possible_box.side_length - current_rect.height)):
           # ... at any rotation
           for is_flipped in [False, True]:
 
@@ -78,7 +101,6 @@ class GeometricOverlap(Neighborhood):
 
             move = GeometricOverlapMove(current_rect.id, current_box.id, possible_box.id, x, y, is_flipped)
             score = cls.generate_heuristic(solution, move)
-
             # Skip invalid moves
             if not score.is_valid():
               continue
@@ -103,45 +125,26 @@ class GeometricOverlap(Neighborhood):
     '''
     logger.info("Calculating Geometric neighborhoods with overlap %i", cls.call_count)
 
-    # If this is the first time this gets called, set the solution's overlap to an allowed 100%
-    if cls.call_count == 0:
-      solution.currently_permissible_overlap = 1.0
-
     cls.call_count += 1
 
     # Decrease allowed overlap after we made a move for every rect
     if cls.call_count >= sum(len(b.rects) for b in solution.boxes.values()):
       cls.call_count = 1
-      new_overlap = max(0.0, solution.currently_permissible_overlap - 0.05)
+      new_overlap = solution.currently_permissible_overlap * 0.8
+      new_overlap = max(0.0, new_overlap - 0.05) # Snap to 0
       logger.info("Updating permissible overlap to %f", new_overlap)
       solution.currently_permissible_overlap = new_overlap
 
     # Create list of tuples (box_id, rect_id)
     rects = []
 
-    # Prio rect gets defined if there is a box with only one rect, if so try to place that
-    prio_rect = None
-
     for box_id, box in solution.boxes.items():
-      if prio_rect is not None:
-        break
-      # If we have a box with only one rect, go into quick mode
       for rect_id in box.rects.keys():
-        if len(box.rects) == 1:
-          prio_rect = (box_id, rect_id)
-          break
         if rect_id not in solution.last_moved_rect_ids:
           rects.append((box_id, rect_id))
 
-    # If we have a prio rect, generate moves only for this in hopes of
-    # putting it into another box
-    scored_moves = []
-    if prio_rect is not None:
-      scored_moves = cls.generate_moves_for_rects(solution, [prio_rect])
-
-    # If scored moves are empty either because there was no prio rect or because
-    # the method didn't return any valid neighbors, do the expensive shaboingboing
-    if len(scored_moves) == 0:
+    # If every process has at least 5 rects, go multithreaded
+    if len(rects) / cls.n_proc >= 5:
       # Copy the current solution so every thread can modify it independently
       solution_copies = [deepcopy(solution) for _ in range(cls.n_proc)]
 
@@ -153,30 +156,28 @@ class GeometricOverlap(Neighborhood):
       # Evaluate all rects to scored moves concurrently
       with Pool(processes=cls.n_proc) as pool:
         scored_moves = flatten(pool.starmap(cls.generate_moves_for_rects, zip(solution_copies, chunks)))
+    # Else just do it here
+    else:
+      scored_moves = cls.generate_moves_for_rects(solution, rects)
 
     logger.info("Explored %i neighbors", len(scored_moves))
     return scored_moves
 
   @classmethod
-  def generate_heuristic(cls, solution: BoxSolution, move: Move = None) -> GenericHeuristic:
+  def generate_heuristic(cls, solution: BoxSolution, move: Move = None) -> OverlapHeuristic:
     '''
     Calculates the heuristic score of the solution after a given move.
     Passing no move will return the heuristic score of the solution itself.
     '''
-    move_sucessful = True
-
     # Perform move
     if move is not None:
-      move_sucessful = move.apply_to_solution(solution)
+      move.apply_to_solution(solution)
 
-    # If move was unsuccessful, it resulted in an invalid solution
-    if not move_sucessful:
-      return GenericHeuristic(None, None, None)
-
-    # If move is valid, construct a proper score
-    box_entropy = solution.compute_box_entropy()
-    incident_edges = solution.compute_incident_edge_coordinates()
-    heuristic = GenericHeuristic(len(solution.boxes), box_entropy, incident_edges)
+    heuristic = OverlapHeuristic(
+      len(solution.boxes),
+      solution.count_illegal_overlaps(),
+      solution.compute_incident_edge_coordinates()
+    )
 
     # Undo the move operation
     if move is not None:
@@ -228,7 +229,7 @@ class GeometricOverlapMove(Move):
     # Check if new box id is already in solution
     if self.to_box_id in solution.boxes:
       new_box = solution.boxes[self.to_box_id]
-      move_success = new_box.add_rect(current_rect, check_overlap=False)
+      move_success = new_box.add_rect(current_rect)
 
       if not move_success:
         # Revert rect coordinates
@@ -241,7 +242,7 @@ class GeometricOverlapMove(Move):
 
     # If it was not, create a new box
     else:
-      new_box = Box(self.to_box_id, current_box.side_length, current_rect)
+      new_box = Box(self.to_box_id, current_box.side_length, current_rect, calc_coords=False)
       solution.boxes[self.to_box_id] = new_box
 
     # Highlight it as changed
@@ -279,7 +280,7 @@ class GeometricOverlapMove(Move):
 
     # Maybe the old box was deleted by the move? Otherwise just add it back
     if self.from_box_id not in solution.boxes.keys():
-      solution.boxes[self.from_box_id] = Box(self.from_box_id, solution.side_length, rect)
+      solution.boxes[self.from_box_id] = Box(self.from_box_id, solution.side_length, rect, calc_coords=False)
     else:
       # solution.boxes[self.from_box_id].needs_redraw = True
       solution.boxes[self.from_box_id].add_rect(rect)

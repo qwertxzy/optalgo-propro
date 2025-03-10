@@ -134,3 +134,48 @@ class PermutationHeuristic(AbstractHeuristic):
 
   def is_valid(self) -> bool:
     return True
+
+
+@dataclass
+class OverlapHeuristic(AbstractHeuristic):
+  '''
+  Specific heuristic implementation for the geometric overlap neighborhood.
+  '''
+
+  box_count: int
+  '''Overall number of boxes, lower is better.'''
+  illegally_overlapping_rects: int
+  '''Number of rectangles who's overlap area is too large, lower is better.'''
+  incident_edges: int
+  '''Number of coordinates shared by two adjacent rects. Higher is better.'''
+
+  def is_valid(self):
+    return self.illegally_overlapping_rects == 0
+
+  def __iter__(self):
+    return iter(self.box_count, self.illegally_overlapping_rects)
+
+  def __repr__(self):
+    return f"OverlapHeuristic({self.box_count=}, {self.illegally_overlapping_rects=}, {self.incident_edges=})"
+
+  def __lt__(self, other: OverlapHeuristic):
+    # If they differ in illegal overlap number its easy
+    if self.illegally_overlapping_rects != other.illegally_overlapping_rects:
+      return self.illegally_overlapping_rects < other.illegally_overlapping_rects
+    # Otherwise compare box counts
+    if self.box_count != other.box_count:
+      return self.box_count < other.box_count
+    # Finally, compare incident edges
+    return self.incident_edges > other.incident_edges
+
+  def __eq__(self, value):
+    if not isinstance(value, OverlapHeuristic):
+      return False
+    return all([
+      self.box_count == value.box_count,
+      self.illegally_overlapping_rects == value.illegally_overlapping_rects,
+      self.incident_edges == value.incident_edges
+    ])
+
+  def __le__(self, other):
+    return self < other or self == other
