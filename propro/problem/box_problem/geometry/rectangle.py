@@ -135,12 +135,10 @@ class Rectangle:
       return True
 
     # Calculate overlap area
-    overlap_x = max(0, min(self.__x + self.width, other.get_x() + other.get_width()) - max(self.__x, other.get_x()))
-    overlap_y = max(0, min(self.__y + self.height, other.get_y() + other.height) - max(self.__y, other.get_y()))
+    overlap_x = max(0, min(self.get_x() + self.width, other.get_x() + other.get_width()) - max(self.get_x(), other.get_x()))
+    overlap_y = max(0, min(self.get_y() + self.height, other.get_y() + other.height) - max(self.get_y(), other.get_y()))
 
-    return (overlap_x * overlap_y / (self.get_area() + other.get_area())) > permissible_overlap
-
-
+    return (overlap_x * overlap_y / max(self.get_area(), other.get_area())) > permissible_overlap
 
   def get_corners(self) -> set[tuple[int, int]]:
     '''Returns a set of coordinates for each corner of the rectangle'''

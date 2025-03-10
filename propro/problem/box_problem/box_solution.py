@@ -83,6 +83,15 @@ class BoxSolution(Solution):
     entropy = -sum(p * log2(p) if p > 0 else 0.0 for p in probabilities)
     return entropy
 
+  def count_illegal_overlaps(self) -> int:
+    '''Counts the number of rectangles that overlap illegally.'''
+    n = 0
+    for box in self.boxes.values():
+      for rect_a, rect_b in combinations(box.rects.values(), 2):
+        if rect_a.overlaps(rect_b, self.currently_permissible_overlap):
+          n += 2
+    return n
+
   # TODO: don't re-calculate this every time
   def get_heuristic_score(self) -> GenericHeuristic:
     if not self.is_valid():

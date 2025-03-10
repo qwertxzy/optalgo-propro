@@ -37,6 +37,7 @@ class LocalSearch(OptimizationAlgorithm):
 
     best_score = min(n.score for n in neighbors)
 
+    logger.info("Chose score %s", best_score)
     # if best_score > self.problem.current_solution.get_heuristic_score():
     #   logger.warning("Algorithm reached a local minimum.")
     #   return
