@@ -1,14 +1,15 @@
 from __future__ import annotations
 import logging
 from dataclasses import dataclass
+import random
 # from multiprocessing import Pool, cpu_count
 # from copy import deepcopy
 # import os
 
 from problem.box_problem.geometry import Box, Rectangle
 from problem.box_problem.box_heuristic import PermutationHeuristic
-from utils import flatten
 from problem.box_problem.box_solution import BoxSolution
+from utils import flatten
 from .neighborhood import Neighborhood
 from ..move import ScoredMove, Move
 
@@ -66,7 +67,6 @@ class Permutation(Neighborhood):
         boxes.append(current_box)
     return boxes
 
-
   @classmethod
   def evaluate_moves(cls, solution: BoxSolution, moves: list[PermutationMove]) -> list[ScoredMove]:
     scored_moves = []
@@ -88,35 +88,19 @@ class Permutation(Neighborhood):
     # It then tries to get good swaps of rectangles to improve the solution.
 
     # First, fill the remaining space of the boxes with rectangles located in succeeding boxes.
-    for i, rect_a in enumerate(encoded_rects):
-      box_a = solution.boxes[rect_a.box_id]
-      for j, rect_b in enumerate(encoded_rects[i+1:], start=i+1):
-        if rect_b.box_id == rect_a.box_id:
+    for box_id, box in solution.boxes.items():
+      #get dimensions of the biggest rectangle that fits in the box
+      biggest_rect = box.get_biggest_placeable_rect()
+      if biggest_rect == (0,0) or biggest_rect is None:
+        continue
+      for i, rect_to_swap in enumerate(encoded_rects):
+        if rect_to_swap.box_id <= box_id:
           continue
-        if rect_b.box_id < rect_a.box_id:
-          continue
-        succ = box_a.fit_rect_compress(rect_b, False)
-        flipped = not succ
-        if not succ:
-          #rect_b.get_height(), rect_b.get_width() = rect_b.get_width(), rect_b.get_height()
-          rect_b.flip()
-          succ = box_a.fit_rect_compress(rect_b, False)
-          if not succ:
-            #rect_b.get_height(), rect_b.get_width() = rect_b.get_width(), rect_b.get_height()
-            rect_b.flip()
-        if succ:
-          # swap rect_b with the first rectangle in the box that is not rect_a
-          for k, rect_c in enumerate(encoded_rects[i+1:], start=i+1):
-            assert rect_c.box_id is not None, "Rectangles must have a box id"
-            #assert rect_c.box_id >= rect_a.box_id, "Box IDs must be in ascending order"
-            if rect_c.id == rect_a.id:
-              continue
-            if rect_c.id == rect_b.id:
-              continue
-            if rect_c.box_id == (rect_a.box_id + 1):
-              # swap rect_b with rect_c
-              moves.append(PermutationMove(k,j, rect_c, rect_b, flipped, True))
-              break
+        if rect_to_swap.get_width() <= biggest_rect[0] and rect_to_swap.get_height() <= biggest_rect[1]:
+          #get any rectangle of the box.
+          dummy_target_box_rect = list(box.rects.values())[0]
+          dummy_target_box_rect_idx = encoded_rects.index(dummy_target_box_rect)
+          moves.append(PermutationMove(dummy_target_box_rect_idx , i, dummy_target_box_rect, rect_to_swap, False, True))
           break
       if moves:
         break
@@ -208,22 +192,24 @@ class Permutation(Neighborhood):
 
     logger.info("Explored %i neighbors", len(scored_moves))
     return scored_moves
-  
+
   @classmethod
   def generate_heuristic(cls, solution: BoxSolution, move: Move = None):
     if move is None:
       return PermutationHeuristic(solution)
-  
-    rect_A = move.first_rect
-    rect_B = move.second_rect
-    heuristic = PermutationHeuristic(rect_A, rect_B)
+
+    rect_a = move.first_rect
+    rect_b = move.second_rect
+    heuristic = PermutationHeuristic(rect_a, rect_b)
     if move.is_fill:
-      heuristic = PermutationHeuristic(rect_A, rect_B, True, solution.side_length)
+      heuristic = PermutationHeuristic(rect_a, rect_b, True, solution.side_length)
     return heuristic
 
 @dataclass
 class PermutationMove(Move):
-  '''Describes a move as two indices of rects to be swapped in the encoded rect list (with optional flip)'''
+  '''Describes a move as two indices of rects to be swapped in the encoded rect list (with optional flip).
+  If it is a fillup, the second rect is inserted to the box of the first rect.'''
+
   first_idx: int
   second_idx: int
   first_rect: Rectangle
@@ -261,63 +247,51 @@ class PermutationMove(Move):
         boxes.append(current_box)
     return boxes
 
+
   @classmethod
-  def partial_decode(cls, rect_a: Rectangle, rect_b: Rectangle, rects: list[Rectangle], box_length: int, boxes: dict[int, Box]) -> dict[int, Box]:
+  def apply_fillup_move(
+    cls,
+    target_box: int,
+    rect_to_swap: Rectangle,
+    boxes: dict[int, Box]
+  ) -> bool:
     '''
-    Decodes a list of rectangles into a valid solution to the box-rect problem.
-    It only modifies the boxes that contain the rectangles that were swapped and eventally propagated changes.
+    Applies a fillup move to the solution.
+    It moves the second rectangle to the box of the first rectangle.
+    returns False if the move is not possible.
     '''
-    # Get the boxes that contain the rectangles
-    box_a = boxes[rect_a.box_id]
-    box_b = boxes[rect_b.box_id]
+    # Get the boxes that contain the rectangle
+    box_b = boxes[rect_to_swap.box_id]
 
-    # sort them by box id
-    if box_a.id > box_b.id:
-      box_a, box_b = box_b, box_a
+    # Remove the rectangle from box_b
+    box_b.remove_rect(rect_to_swap.id)
+    # might need to remove the box if it is empty
+    if not box_b.rects:
+      boxes.pop(box_b.id)
+      for i, box in boxes.items():
+        box.set_box_id(i)
 
-    current_box = boxes[0]
-    fine : bool = True
-    needs_new_box : bool = False
-    for i, rect in enumerate(rects):
-      assert rect.box_id is not None, "Rectangles must have a box id"
-
-      # check if we have finished a box with a permutation that did not need additional boxes
-      if current_box.id != rect.box_id and not fine and not needs_new_box:
-        fine = True
-
-      if fine:
-        # skip until we find the first box
-        if current_box.id + 1 == rect.box_id:
-          current_box = boxes[rect.box_id]
-        if current_box.id not in (box_a.id, box_b.id):
-          continue
-        assert current_box.id not in (box_a.id, box_b.id), "Rectangle must be in one of the two boxes"
-        # we have encountered a box where a move happens.
-        # reset this box to get newly filled.
-        current_box = Box(current_box.id, box_length)
-        boxes[current_box.id] = current_box
-        fine = False
-
-      # try to place the rectangle in this box.
-      # if it does not fit in the box, create a new box and place it there. Overwriting the next box.
-      succ = current_box.fit_rect_compress(rect)
-      if not succ:
-        needs_new_box = True
-        current_box = Box(current_box.id+1, box_length)
-        current_box.fit_rect_compress(rect)
-        assert rect.get_x() == 0 and rect.get_y() == 0, \
-          f"Rectangle must be placed in the upper left corner as the box is empty. currlocation is: {rect.get_x()} {rect.get_y()}"
-        boxes[current_box.id] = current_box
-    #might need to remove boxes if the current_box is not the last box
-    if current_box.id < len(boxes):
-      for i in range(current_box.id+1, len(boxes)):
-        boxes.pop(i)
-    return boxes
+    # Try to fit the rectangle into box_a
+    succ = boxes[target_box].fit_rect_compress(rect_to_swap)
+    rect_to_swap.highlighted = True
+    return succ
 
   def apply_to_solution(self, solution: BoxSolution) -> bool:
     '''Applies this move to a given box solution'''
     if (self.first_idx == self.second_idx) and not self.flip:
       return False
+
+    #if it is a fillup move, apply it and return
+    if self.is_fill:
+      succ = self.apply_fillup_move(self.first_rect.box_id, self.second_rect, solution.boxes)
+      if not succ:
+        return False
+      if random.randint(1, 20) == 1:
+        solution.boxes = {
+          box.id: box
+          for box in self.decode_rect_list(self.encode_solution(solution), solution.side_length)
+          }
+      return True
 
     encoded_rects = self.encode_solution(solution)
 
@@ -342,8 +316,6 @@ class PermutationMove(Move):
       #this_rect.get_width(), this_rect.get_height() = this_rect.get_height(), this_rect.get_width()
       # Highlight it as changed
       this_rect.highlighted ^= True
-
-    #solution.boxes = self.partial_decode(rect_a, rect_b, encoded_rects, solution.side_length, solution.boxes)
 
     # Decode and modify in-place
     solution.boxes = { box.id: box for box in self.decode_rect_list(encoded_rects, solution.side_length) }

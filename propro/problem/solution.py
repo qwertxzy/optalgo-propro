@@ -21,4 +21,3 @@ class Solution(ABC):
     '''
     Deconstructs this solution into something empty and returns a list of objects to be processed.
     '''
-

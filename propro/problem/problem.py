@@ -40,4 +40,3 @@ class Problem(ABC):
   Abstract base class for a generic optimization problem.
   '''
   current_solution: Solution
-
