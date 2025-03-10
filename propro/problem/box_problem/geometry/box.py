@@ -102,7 +102,7 @@ class Box:
     Returns the biggest rectangle that can be placed in this box.
     '''
     # Get all free coordinates
-    free_coords = self.get_free_coordinates(return_sorted=True)
+    free_coords = self.get_free_coordinates(sort=True)
     free_coords_set = set(free_coords)  # Convert to set for O(1) lookups
 
     # Find the biggest rectangle that fits
