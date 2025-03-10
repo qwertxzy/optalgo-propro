@@ -74,8 +74,18 @@ class Box:
     # Add rect to internal dict
     self.rects[rect.id] = rect
 
-    # Set the dirty flag for incident edge stats
-    self.dirty = True
+    # Update incident edge count
+    adj_coords = self.__adjacent_coordinates
+    rect_edges = rect.get_edges()
+    self.__incident_edge_count += len(rect_edges & adj_coords)
+
+    # Update adjacent coordinate set
+    self.__adjacent_coordinates ^= rect.get_edges()
+
+    # Update free coordinates
+    self.__free_coords -= rect.get_all_coordinates()
+    self.__sorted_free_coords = sorted(self.__free_coords, key=lambda coord: (coord[0], coord[1]))
+
     self.needs_redraw = True
     return True
 
