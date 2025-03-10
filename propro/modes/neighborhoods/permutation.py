@@ -1,6 +1,7 @@
 from __future__ import annotations
 import logging
 from dataclasses import dataclass
+import random
 # from multiprocessing import Pool, cpu_count
 # from copy import deepcopy
 # import os
@@ -272,6 +273,7 @@ class PermutationMove(Move):
 
     # Try to fit the rectangle into box_a
     succ = boxes[target_box].fit_rect_compress(rect_to_swap)
+    rect_to_swap.highlighted = True
     return succ
 
   def apply_to_solution(self, solution: BoxSolution) -> bool:
@@ -284,7 +286,11 @@ class PermutationMove(Move):
       succ = self.apply_fillup_move(self.first_rect.box_id, self.second_rect, solution.boxes)
       if not succ:
         return False
-      solution.boxes = { box.id: box for box in self.decode_rect_list(self.encode_solution(solution), solution.side_length) }
+      if random.randint(1, 20) == 1:
+        solution.boxes = {
+          box.id: box
+          for box in self.decode_rect_list(self.encode_solution(solution), solution.side_length)
+          }
       return True
 
     encoded_rects = self.encode_solution(solution)
