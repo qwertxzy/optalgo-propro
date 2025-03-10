@@ -35,6 +35,25 @@ class GeometricOverlap(Neighborhood):
   # TODO: collapses just fine, but can't build up again..
 
   @classmethod
+  def initialize(cls, solution: BoxSolution) -> BoxSolution:
+    '''Initializes the solution by placing all rects at the origin'''
+    # Set call count to 0 and overlap to max
+    cls.call_count = 0
+    solution.currently_permissible_overlap = 1.0
+
+    # Move all rects to box 0 at 0/0
+    for box_id in list(solution.boxes.keys()):
+      if box_id == 0:
+        continue
+      box = solution.boxes.pop(box_id)
+      # Move all rects
+      for rect_id in list(box.rects.keys()):
+        rect = box.remove_rect(rect_id)
+        rect.move_to(0, 0)
+        solution.boxes[0].add_rect(rect, check_overlap=False)
+    return solution
+
+  @classmethod
   def generate_moves_for_rects(cls, solution: BoxSolution, ids: list[tuple[int, int]]) -> list[ScoredMove]:
     '''
     Generates a list of scoreed moves for the given rects in `solution`.
@@ -78,7 +97,6 @@ class GeometricOverlap(Neighborhood):
 
             move = GeometricOverlapMove(current_rect.id, current_box.id, possible_box.id, x, y, is_flipped)
             score = cls.generate_heuristic(solution, move)
-
             # Skip invalid moves
             if not score.is_valid():
               continue
@@ -102,10 +120,6 @@ class GeometricOverlap(Neighborhood):
     Moves every rectangle in every box to every possible coordinate
     '''
     logger.info("Calculating Geometric neighborhoods with overlap %i", cls.call_count)
-
-    # If this is the first time this gets called, set the solution's overlap to an allowed 100%
-    if cls.call_count == 0:
-      solution.currently_permissible_overlap = 1.0
 
     cls.call_count += 1
 
@@ -153,13 +167,11 @@ class GeometricOverlap(Neighborhood):
       # Evaluate all rects to scored moves concurrently
       with Pool(processes=cls.n_proc) as pool:
         scored_moves = flatten(pool.starmap(cls.generate_moves_for_rects, zip(solution_copies, chunks)))
-
     logger.info("Explored %i neighbors", len(scored_moves))
     return scored_moves
-  
 
   @classmethod
-  def generate_heuristic(self, solution: BoxSolution, move: Move = None) -> GenericHeuristic:
+  def generate_heuristic(cls, solution: BoxSolution, move: Move = None) -> GenericHeuristic:
     '''
     Calculates the heuristic score of the solution after a given move.
     Passing no move will return the heuristic score of the solution itself.
@@ -281,4 +293,4 @@ class GeometricOverlapMove(Move):
       solution.boxes[self.from_box_id] = Box(self.from_box_id, solution.side_length, rect)
     else:
       # solution.boxes[self.from_box_id].needs_redraw = True
-      solution.boxes[self.from_box_id].add_rect(rect)
+      solution.boxes[self.from_box_id].add_rect(rect, check_overlap=False)
