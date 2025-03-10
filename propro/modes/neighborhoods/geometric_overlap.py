@@ -41,16 +41,20 @@ class GeometricOverlap(Neighborhood):
     cls.call_count = 0
     solution.currently_permissible_overlap = 1.0
 
-    # Move all rects to box 0 at 0/0
+    # Create a new box with no advanced coordinate features
+    new_box = Box(0, solution.side_length, calc_coords=False)
+
+    # Move all rects to this box
     for box_id in list(solution.boxes.keys()):
-      if box_id == 0:
-        continue
       box = solution.boxes.pop(box_id)
       # Move all rects
       for rect_id in list(box.rects.keys()):
-        rect = box.remove_rect(rect_id)
+        rect = box.rects.pop(rect_id)
         rect.move_to(0, 0)
-        solution.boxes[0].add_rect(rect, check_overlap=False)
+        new_box.add_rect(rect)
+
+    # Replace all boxes in solution with just this new one
+    solution.boxes = { 0: new_box }
     return solution
 
   @classmethod
@@ -225,7 +229,7 @@ class GeometricOverlapMove(Move):
     # Check if new box id is already in solution
     if self.to_box_id in solution.boxes:
       new_box = solution.boxes[self.to_box_id]
-      move_success = new_box.add_rect(current_rect, check_overlap=False)
+      move_success = new_box.add_rect(current_rect)
 
       if not move_success:
         # Revert rect coordinates
@@ -238,7 +242,7 @@ class GeometricOverlapMove(Move):
 
     # If it was not, create a new box
     else:
-      new_box = Box(self.to_box_id, current_box.side_length, current_rect)
+      new_box = Box(self.to_box_id, current_box.side_length, current_rect, calc_coords=False)
       solution.boxes[self.to_box_id] = new_box
 
     # Highlight it as changed
@@ -276,7 +280,7 @@ class GeometricOverlapMove(Move):
 
     # Maybe the old box was deleted by the move? Otherwise just add it back
     if self.from_box_id not in solution.boxes.keys():
-      solution.boxes[self.from_box_id] = Box(self.from_box_id, solution.side_length, rect)
+      solution.boxes[self.from_box_id] = Box(self.from_box_id, solution.side_length, rect, calc_coords=False)
     else:
       # solution.boxes[self.from_box_id].needs_redraw = True
-      solution.boxes[self.from_box_id].add_rect(rect, check_overlap=False)
+      solution.boxes[self.from_box_id].add_rect(rect)
