@@ -34,6 +34,7 @@ class SelectionMove(Move):
   def apply_to_solution(self, solution: BoxSolution, unprocessed_rects: dict[int, Rectangle] = None):
     '''Adds the given rect to the solution'''
     rect = unprocessed_rects.pop(self.rect_id)
+    rect.highlighted = True
     box = solution.boxes.get(self.box_id)
     box.add_rect(rect)
 
@@ -41,4 +42,5 @@ class SelectionMove(Move):
     # Just remove this rect from the solution again
     box = solution.boxes.get(self.box_id)
     rect = box.remove_rect(self.rect_id)
+    rect.highlighted = False
     unprocessed_rects[rect.id] = rect
